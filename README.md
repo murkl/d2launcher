@@ -19,5 +19,5 @@ sudo apt install -y zenity wine-stable p7zip jq
 ```
 And you need a fresh installation of Diablo II!
 
-## Run
+## Run the script
 Simple execute the script from file manager. All available features are accessible  from zenity-gui.
