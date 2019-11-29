@@ -1,5 +1,6 @@
 # d2launcher
-This little shell script downloads the latest Median XL mod from https://www.median-xl.com and save this file locally. You can simple patch your Diablo II with this script. Includes Sven's glide wrapper from http://www.svenswrapper.de
+First of all I would like to thank the Median XL team for this great work!
+This little shell script downloads the latest Median XL mod from https://www.median-xl.com and save this file locally. You can simple patch your Diablo II with this script. Also includes Sven's glide wrapper from http://www.svenswrapper.de.
 
 * Starts Diablo II
 * Median XL version management
