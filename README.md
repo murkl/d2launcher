@@ -17,3 +17,7 @@ This little shell script downloads the latest Median XL mod from https://www.med
 ```
 sudo apt install -y zenity wine-stable p7zip jq
 ```
+And you need a fresh installation of Diablo II!
+
+## Run
+Simple execute the script from file manager. All available features are accessible  from zenity-gui.
