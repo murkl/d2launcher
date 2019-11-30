@@ -1,17 +1,10 @@
 #!/bin/sh
 #
-# d2launcher
+# GitHub
+# https://github.com/murkl/d2launcher
 #
-# version: 1.0
-# autor:   murkl
-# os:      elementaryOS 5.0 Juno / Ubuntu 18.04 LTS
-#
-# dependencies:
+# Dependencies
 # sudo apt install -y zenity wine-stable p7zip jq
-#
-# sources:
-# https://forum.median-xl.com/viewtopic.php?f=42&t=22755
-
 
 script_title="Diablo II • Median XL • Linux"
 
@@ -41,15 +34,15 @@ icon_file=$script_data_dir/icon.png
 ##################################################################################
 
 if ! [ -x "$(command -v zenity)" ]; then
-	notify-send "$script_title" "zenity not installed. Install with sudo apt install zenity"
-	exit 1;
+  notify-send "$script_title" "zenity not installed. Install with sudo apt install zenity"
+  exit 1;
 fi
 
 # Create config file
 if [ ! -f "$script_config_file" ]; then
 
-	zenity --info --width=250 --window-icon="$icon_file" --title="$script_title" --text="Please choose Diablo II installation dir ..."
-	directory=$(zenity --file-selection --directory)
+  zenity --info --width=250 --window-icon="$icon_file" --title="$script_title" --text="Please choose Diablo II installation dir ..."
+  directory=$(zenity --file-selection --directory)
 
     if [ "$directory" != "" ]; then
       echo "d2_install_dir=\"$directory\"" >> $script_config_file
@@ -68,18 +61,18 @@ fi
 ##################################################################################
 
 check_dependencies() {
-    if ! [ -x "$(command -v $wine)" ]; then
-        show_zenity_error "wine not installed. Install with sudo apt install wine-stable"
-        exit 1;
-    fi
-    if ! [ -x "$(command -v 7z)" ]; then
-        show_zenity_error "7z not installed. Install with sudo apt install p7zip"
-        exit 1;
-    fi
+  if ! [ -x "$(command -v $wine)" ]; then
+    show_zenity_error "wine not installed. Install with sudo apt install wine-stable"
+    exit 1;
+  fi
+  if ! [ -x "$(command -v 7z)" ]; then
+    show_zenity_error "7z not installed. Install with sudo apt install p7zip"
+    exit 1;
+  fi
 	if ! [ -x "$(command -v jq)" ]; then
-        show_zenity_error "jq not installed. Install with sudo apt install jq"
-        exit 1;
-    fi
+   show_zenity_error "jq not installed. Install with sudo apt install jq"
+    exit 1;
+  fi
 }
 
 
@@ -119,11 +112,11 @@ download_mxl() {
   mkdir -p "$patch_files_dir"
 
   # Parse patch infos
-	latest_mxl_patch_json=$(curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]')
+  latest_mxl_patch_json=$(curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]')
   latest_mxl_patch_version=$(echo "$latest_mxl_patch_json" | jq -r '.name' | cut -f3 -d" ")
-	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
+  latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
 
-	# Check if new mxl version available
+  # Check if new mxl version available
   if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
 
     show_zenity_info "No updates available!\n\n$mxl_title $latest_mxl_patch_version patch file allready downloaded."
@@ -148,22 +141,22 @@ download_mxl() {
       echo "70"
       echo "# Extracting $mxl_title dll files ..."
       7z e "$tmp_dir/dlls.7z" -aoa
-	    rm -f "$tmp_dir/dlls.7z"
+      rm -f "$tmp_dir/dlls.7z"
 
       echo "75"
       echo "# Extracting $mxl_title mod files ..."
       7z e "$tmp_dir/mod.7z" -aoa
-	    rm -f "$tmp_dir/mod.7z"
+      rm -f "$tmp_dir/mod.7z"
 
       echo "85"
       echo "# Creating $latest_mxl_patch_prefix patch ..."
-	    echo "$latest_mxl_patch_json" >> "$tmp_dir/$patch_file_prefix.json"
-	    zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
+      echo "$latest_mxl_patch_json" >> "$tmp_dir/$patch_file_prefix.json"
+      zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
 
       echo "100"
       echo "# $mxl_title $latest_mxl_patch_version patch successfully downloaded"
 
-    ) |	zenity --window-icon="$icon_file" --height=150 --width=350 --progress --text="Downloading $mxl_title $latest_mxl_patch_version" --percentage=5 --auto-kill --pulsate
+    ) | zenity --window-icon="$icon_file" --height=150 --width=350 --progress --text="Downloading $mxl_title $latest_mxl_patch_version" --percentage=5 --auto-kill --pulsate
 
     if [ "$?" = -1 ] ; then
       show_zenity_error "Download error"
@@ -175,7 +168,7 @@ download_mxl() {
 
 patch_mxl() {
 
-	if [ ! -d "$patch_files_dir" ]; then
+  if [ ! -d "$patch_files_dir" ]; then
     show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
     exit 1;
   fi
@@ -188,7 +181,7 @@ patch_mxl() {
   cd "$patch_files_dir"
 
   # List path files
-	patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | cut -f 1 -d '-' | rev | zenity --list --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | cut -f 1 -d '-' | rev | zenity --list --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
   if  [ "$?" -eq 0 ] && [ "$patch_version" != "" ]; then
     (
@@ -330,36 +323,36 @@ while(true); do
 
   # If user exit
   if [ $? = 1 ]; then
-      break; exit 0;
+    break; exit 0;
   fi
 
   if [ "$result" = "$item_01" ]; then
-      exec_diablo
-      exit 0;
+    exec_diablo
+    exit 0;
   fi
   if [ "$result" = "$item_02" ]; then
-      download_mxl
+    download_mxl
   fi
   if [ "$result" = "$item_03" ]; then
-      patch_mxl
+    patch_mxl
   fi
   if [ "$result" = "$item_04" ]; then
-      exec_d2_video_settings
+    exec_d2_video_settings
   fi
   if [ "$result" = "$item_05" ]; then
-      exec_glide_settings
+    exec_glide_settings
   fi
   if [ "$result" = "$item_06" ]; then
-      import_data
+    import_data
   fi
   if [ "$result" = "$item_07" ]; then
-      export_data
+    export_data
   fi
   if [ "$result" = "$item_08" ]; then
-      create_desktop_file
+    create_desktop_file
   fi
   if [ "$result" = "$item_09" ]; then
-      remove_desktop_file
+    remove_desktop_file
   fi
 
 done
