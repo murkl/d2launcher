@@ -109,8 +109,6 @@ exec_diablo() {
 
 download_mxl() {
 
-  mkdir -p "$patch_files_dir"
-
   # Parse patch infos
   latest_mxl_patch_json=$(curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]')
   latest_mxl_patch_version=$(echo "$latest_mxl_patch_json" | jq -r '.name' | cut -f3 -d" ")
@@ -151,6 +149,7 @@ download_mxl() {
       echo "85"
       echo "# Creating $latest_mxl_patch_prefix patch ..."
       echo "$latest_mxl_patch_json" >> "$tmp_dir/$patch_file_prefix.json"
+      mkdir -p "$patch_files_dir"
       zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
 
       echo "100"
@@ -181,7 +180,7 @@ patch_mxl() {
   cd "$patch_files_dir"
 
   # List path files
-  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | cut -f 1 -d '-' | rev | zenity --list --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | cut -f 1 -d '-' | rev | zenity --list --window-icon="$icon_file" --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
   if  [ "$?" -eq 0 ] && [ "$patch_version" != "" ]; then
     (
