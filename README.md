@@ -3,6 +3,8 @@ First of all I would like to thank the Median XL team for the great work! This z
 
 ![d2launcher Screenshot](https://raw.githubusercontent.com/murkl/d2launcher/master/data/screenshot.png)
 
+**Download latest version:** [d2launcher-1.0.1.tar.gz](https://github.com/murkl/d2launcher/releases/download/1.0.1/d2launcher-1.0.1.tar.gz)
+
 
 ## More features
 * Median XL version management
@@ -15,10 +17,6 @@ First of all I would like to thank the Median XL team for the great work! This z
 ```
 sudo apt install -y zenity wine-stable p7zip jq
 ```
-
-
-## Download
-**Latest version:** [d2launcher-1.0.1.tar.gz](https://github.com/murkl/d2launcher/releases/download/1.0.1/d2launcher-1.0.1.tar.gz)
 
 
 ## Run the script
