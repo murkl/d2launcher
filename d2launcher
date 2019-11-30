@@ -48,7 +48,7 @@ if [ ! -f "$script_config_file" ]; then
       echo "d2_install_dir=\"$directory\"" >> $script_config_file
       echo "skip_to_mxl_login=true" >> $script_config_file
       echo "wine=wine" >> $script_config_file
-      echo "wineprefix=\"$HOME/.wine\"" >> $script_config_file
+      echo "wineprefix=\"$script_dir/wineprefix\"" >> $script_config_file
     else
       exit 1;
     fi
