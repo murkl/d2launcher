@@ -10,7 +10,7 @@ First of all I would like to thank the Median XL team for the great work! This z
 * Includes Sven's Glide wrapper
 * Wineprefix for Diablo II
 * Userconfig
-* Full Conflict Management
+* Full conflict management
 
 ## Dependencies
 ```
