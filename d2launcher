@@ -114,6 +114,11 @@ download_mxl() {
   latest_mxl_patch_version=$(echo "$latest_mxl_patch_json" | jq -r '.name' | cut -f3 -d" ")
   latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
 
+  if [ "$latest_mxl_patch_version" = "" ]; then
+    show_zenity_error "No connection to server"
+    exit 1;
+  fi
+
   # Check if new mxl version available
   if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
 
@@ -180,7 +185,7 @@ patch_mxl() {
   cd "$patch_files_dir"
 
   # List path files
-  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | cut -f 1 -d '-' | rev | zenity --list --window-icon="$icon_file" --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --window-icon="$icon_file" --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
   if  [ "$?" -eq 0 ] && [ "$patch_version" != "" ]; then
     (
