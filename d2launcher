@@ -14,23 +14,6 @@ script_dir=$(dirname "$script_file")
 script_config_file="$script_dir/$script_file_name.conf"
 script_data_dir="$script_dir/data"
 
-patch_files_dir="$script_dir/patches"
-patch_file_prefix="d2launcher-mxl"
-
-d2_mxl_core_data_file="$script_data_dir/d2-mxl-core.zip"
-glide_data_file="$script_data_dir/gl32ogl14e.zip"
-
-mxl_title="Median XL"
-mxl_version_url=http://get.median-xl.com/launcher/?get=versions
-mxl_dlls_url=http://get.median-xl.com/launcher/?get=dlls
-mxl_mod_url=http://get.median-xl.com/launcher/?get=mod
-mxl_data_dir="$HOME/.wine/drive_c/users/$USER/Application Data/MedianXL"
-mxl_save_prefix="$script_file_name-mxl-save"
-
-desktop_file_name="Diablo II"
-desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
-icon_file=$script_data_dir/icon.png
-
 ##################################################################################
 
 if ! [ -x "$(command -v zenity)" ]; then
@@ -57,6 +40,25 @@ fi
 
 # Import config file
 . "$script_config_file"
+
+##################################################################################
+
+patch_files_dir="$script_dir/patches"
+patch_file_prefix="d2launcher-mxl"
+
+d2_mxl_core_data_file="$script_data_dir/d2-mxl-core.zip"
+glide_data_file="$script_data_dir/gl32ogl14e.zip"
+
+mxl_title="Median XL"
+mxl_version_url=http://get.median-xl.com/launcher/?get=versions
+mxl_dlls_url=http://get.median-xl.com/launcher/?get=dlls
+mxl_mod_url=http://get.median-xl.com/launcher/?get=mod
+mxl_data_dir="$wineprefix/drive_c/users/$USER/Application Data/MedianXL"
+mxl_save_prefix="$script_file_name-mxl-save"
+
+desktop_file_name="Diablo II"
+desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
+icon_file=$script_data_dir/icon.png
 
 ##################################################################################
 
@@ -87,7 +89,6 @@ show_zenity_error() {
 
 
 exec_diablo() {
-
   if [ ! -f "$d2_install_dir/Diablo II.exe" ]; then
     show_zenity_error "$d2_install_dir/Diablo II.exe not found"
     exit 1;
@@ -108,7 +109,6 @@ exec_diablo() {
 
 
 download_mxl() {
-
   # Parse patch infos
   latest_mxl_patch_json=$(curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]')
   latest_mxl_patch_version=$(echo "$latest_mxl_patch_json" | jq -r '.name' | cut -f3 -d" ")
@@ -121,9 +121,7 @@ download_mxl() {
 
   # Check if new mxl version available
   if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
-
     show_zenity_info "No updates available!\n\n$mxl_title $latest_mxl_patch_version patch file allready downloaded."
-
   else
 
     # Create tmp download dir
@@ -153,7 +151,6 @@ download_mxl() {
 
       echo "85"
       echo "# Creating $latest_mxl_patch_prefix patch ..."
-      echo "$latest_mxl_patch_json" >> "$tmp_dir/$patch_file_prefix.json"
       mkdir -p "$patch_files_dir"
       zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
 
@@ -171,7 +168,6 @@ download_mxl() {
 
 
 patch_mxl() {
-
   if [ ! -d "$patch_files_dir" ]; then
     show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
     exit 1;
@@ -182,27 +178,33 @@ patch_mxl() {
     exit 1;
   fi
 
-  cd "$patch_files_dir"
-
   # List path files
-  patch_version=$( ls *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --window-icon="$icon_file" --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+  cd "$patch_files_dir"
+  patch_file_result=$( ls *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --window-icon="$icon_file" --height=300 --width=300 --title="$mxl_title" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
-  if  [ "$?" -eq 0 ] && [ "$patch_version" != "" ]; then
+  if  [ "$?" -eq 0 ] && [ "$patch_file_result" != "" ]; then
     (
+      patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
       echo "10"
+      echo "# Creating backup ..."
+      cd "$d2_install_dir"
+      zip -0 "$patch_file_result-backup.zip" `zipinfo -1 "$d2_mxl_core_data_file"; zipinfo -1 "$patch_files_dir/$patch_file_result.zip"`
+
+      echo "30"
       echo "# Patching glide ..."
       install_glide
 
-      echo "25"
+      echo "35"
       echo "# Patching $d2_mxl_core_data_file ..."
       unzip -o "$d2_mxl_core_data_file" -d "$d2_install_dir"
 
-      echo "45"
-      echo "# Patching $patch_file_prefix-$patch_version.zip ..."
-      unzip -o "$patch_files_dir/$patch_file_prefix-$patch_version.zip" -d "$d2_install_dir"
+      echo "75"
+      echo "# Patching $patch_file_result.zip ..."
+      unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_install_dir"
 
       echo "100"
+      echo "$patch_version" > "$d2_install_dir/$patch_file_prefix.version"
       echo "# $mxl_title $patch_version successfully patched"
 
     ) | zenity --window-icon="$icon_file" --height=150 --width=350 --progress --text="Patching $mxl_title $patch_version" --percentage=5 --auto-kill --pulsate
@@ -216,7 +218,6 @@ patch_mxl() {
 
 
 exec_d2_video_settings() {
-
   if [ ! -f "$d2_install_dir/D2VidTst.exe" ]; then
     show_zenity_error "$d2_install_dir/D2VidTst.exe not found"
     exit 1;
@@ -228,7 +229,6 @@ exec_d2_video_settings() {
 
 
 install_glide() {
-
   if [ ! -f "$d2_install_dir/glide-init.exe" ]; then
 
     if [ ! -f "$glide_data_file" ]; then
@@ -243,64 +243,45 @@ install_glide() {
 
 
 exec_glide_settings() {
-
   install_glide
-
   cd "$d2_install_dir"
   env WINEPREFIX="$wineprefix" $wine start /unix "glide-init.exe"
 }
 
 
 export_data() {
-
   directory=$(zenity --file-selection --directory)
-
   if [ "$directory" != "" ]; then
-
     filename="$mxl_save_prefix-$(date "+%Y%m%d%H%M").zip"
-
     cd "$mxl_data_dir"
     zip -r -0 "$directory/$filename" .
-
     show_zenity_info "Data successfully exported: $directory/$filename"
-
   fi
 }
 
 
 import_data() {
-
   file=$(zenity --file-selection --file-filter="$mxl_save_prefix-*.zip")
-
   if [ "$file" != "" ]; then
-
-    rm -R "$mxl_data_dir/*"
     unzip -o "$file" -d "$mxl_data_dir"
-
     show_zenity_info "$mxl_data_dir successfully imported"
-
   fi
 }
 
 
 create_desktop_file() {
-
   rm -f $desktop_file
-
   echo "[Desktop Entry]" >> $desktop_file
   echo "Name=$desktop_file_name" >> $desktop_file
   echo "Icon=$icon_file" >> $desktop_file
   echo "Exec=\"$script_file\"" >> $desktop_file
   echo "Type=Application" >> $desktop_file
-
   chmod +x $desktop_file
-
   show_zenity_info "$desktop_file successfully created"
 }
 
 
 remove_desktop_file() {
-
   rm -f $desktop_file
   show_zenity_info "$desktop_file successfully removed"
 }
