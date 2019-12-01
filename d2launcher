@@ -305,20 +305,31 @@ remove_desktop_file() {
 
 check_dependencies
 
-item_01="Start Diablo II"
-item_02="Download latest $mxl_title patch"
-item_03="Install local $mxl_title patch"
-item_04="Open D2 Video Settings"
-item_05="Open Glide Settings"
-item_06="Import $mxl_title Savegames"
-item_07="Export $mxl_title Savegames"
-item_08="Create Menu Entry"
-item_09="Remove Menu Entry"
-
 while(true); do
 
+  d2_postfix=""
+  d2_xml_version_file="$d2_install_dir/$patch_file_prefix.json"
+
+  if [ -f "$d2_xml_version_file" ]; then
+    d2_postfix=" & "$(cat $d2_xml_version_file | jq -r '.name')
+  fi
+
+  item_01="Start Diablo II$d2_postfix"
+  item_02="Download latest $mxl_title patch"
+  item_03="Install local $mxl_title patch"
+  item_04="Open D2 Video Settings"
+  item_05="Open Glide Settings"
+  item_06="Import $mxl_title Savegames"
+  item_07="Export $mxl_title Savegames"
+
+  if [ ! -f $desktop_file ]; then
+    item_08="Create Menu Entry"
+  else
+    item_08="Remove Menu Entry"
+  fi
+
   # Show menu
-  result=$(zenity --list --radiolist --window-icon="$icon_file" --height=350 --width=300 --text="$script_title\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09")
+  result=$(zenity --list --radiolist --window-icon="$icon_file" --height=350 --width=300 --text="$script_title\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08")
 
   # If user exit
   if [ $? = 1 ]; then
@@ -348,10 +359,11 @@ while(true); do
     export_data
   fi
   if [ "$result" = "$item_08" ]; then
-    create_desktop_file
-  fi
-  if [ "$result" = "$item_09" ]; then
-    remove_desktop_file
+    if [ ! -f "$desktop_file" ]; then
+      create_desktop_file
+    else
+      remove_desktop_file
+    fi
   fi
 
 done
