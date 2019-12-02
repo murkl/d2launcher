@@ -294,10 +294,10 @@ check_dependencies
 while(true); do
 
   d2_postfix=""
-  d2_xml_version_file="$d2_install_dir/$patch_file_prefix.json"
+  d2_xml_version_file="$d2_install_dir/$patch_file_prefix.version"
 
   if [ -f "$d2_xml_version_file" ]; then
-    d2_postfix=" & "$(cat $d2_xml_version_file | jq -r '.name')
+    d2_postfix=" & "$(cat $d2_xml_version_file)
   fi
 
   item_01="Start Diablo II$d2_postfix"
