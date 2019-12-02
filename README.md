@@ -1,7 +1,9 @@
 # Diablo II • Median XL • Linux
 First of all I would like to thank the Median XL team for the great work! This zenity shell script downloads the latest Median XL mod and save this files locally. After that you can simple patch Diablo II with this script to work with the latest Median XL version. The patch also includes Sven's glide wrapper.
 
-![d2launcher Screenshot](https://raw.githubusercontent.com/murkl/d2launcher/master/data/screenshot.png)
+![d2launcher main](https://raw.githubusercontent.com/murkl/d2launcher/master/screenshots/main.png)
+![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/screenshots/patches.png)
+
 
 **Download latest version:** [d2launcher-1.0.3.tar.gz](https://github.com/murkl/d2launcher/releases/download/1.0.3/d2launcher-1.0.3.tar.gz)
 
