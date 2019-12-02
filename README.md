@@ -5,7 +5,7 @@ First of all I would like to thank the Median XL team for the great work! This z
 ![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/screenshots/patches.png)
 
 
-**Download latest version:** [d2launcher-1.0.3.tar.gz](https://github.com/murkl/d2launcher/releases/download/1.0.3/d2launcher-1.0.3.tar.gz)
+**Download latest version:** [d2launcher-1.0.4.tar.gz](https://github.com/murkl/d2launcher/releases/download/1.0.4/d2launcher-1.0.4.tar.gz)
 
 ## More features
 * Median XL version management
