@@ -1,7 +1,7 @@
 #!/bin/sh
 # https://github.com/murkl/d2launcher
 
-script_title="Diablo II • Median XL • Linux"
+script_title="Diablo II • Median XL • Standalone"
 
 script_file=$(readlink -f "$0")
 script_file_name=$(basename "$script_file")
