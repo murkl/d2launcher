@@ -24,11 +24,11 @@ sudo pacman -S p7zip jq
 ```
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install -y p7zip jq
+sudo apt install p7zip jq
 ```
 
 ## Run the script
-On first execute you will ask for the Diablo II installtion dir and a promt to download wine standalone will appears.
+On first execution you will ask for the Diablo II installtion dir and a promt to download wine standalone will appears.
 ```
 ./d2launcher
 ```
