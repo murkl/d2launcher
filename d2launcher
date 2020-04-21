@@ -56,6 +56,10 @@ if ! [ -x "$(command -v jq)" ]; then
 	send_notify "jq not installed"
 	exit 1;
 fi
+if ! [ -x "$(command -v wmctrl)" ]; then
+	send_notify "wmctrl not installed"
+	exit 1;
+fi
 
 zenity() {
 	/usr/bin/zenity --name="$script_file_name" --title="$script_title" --window-icon="$script_icon_file" --height=130 --width=350 "$@" 2>/dev/null
@@ -92,7 +96,7 @@ install_glide() {
 			exit 1;
 		fi
 	    unzip -o "$glide_data_file" -d "$d2_binary_dir"
-	    send_notify "Glide wrapper was installed in background"
+	    send_notify "Glide wrapper was installed"
 	fi
 }
 
@@ -224,6 +228,7 @@ exec_d2_stats() {
             echo "# D2-Stats successfully downloaded"
         ) | zenity --progress --text="Downloading D2-Stats" --auto-kill --pulsate
     fi
+    
     if [ ! -f "$d2_binary_dir/sigma-loader.exe" ]; then
         zenity --question --text="sigma-loader.exe is required. Download now?"
         if [ $? == 1 ]; then
