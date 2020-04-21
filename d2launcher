@@ -6,13 +6,15 @@ script_title="Diablo II • Median XL • Standalone"
 script_file=$(readlink -f "$0")
 script_file_name=$(basename "$script_file")
 script_dir=$(dirname "$script_file")
-script_settings_file="$script_dir/settings.conf"
+script_config_file="$script_dir/$script_file_name.conf"
 script_data_dir="$script_dir/res"
 script_icon_file=$script_data_dir/icon.png
+script_help_file="$script_data_dir/d2launcher-help.html"
 
+# Download urls
 wine_url="https://github.com/ferion11/Proton_Appimage/releases/download/continuous/proton-linux-x86-v4.2-PlayOnLinux-x86_64.AppImage"
-wine="$script_data_dir/wine"
-wineprefix="$script_dir/.wineprefix"
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
+sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/latest/download/sigma-loader.exe"
 
 patch_files_dir="$script_data_dir/patches"
 patch_file_prefix="d2launcher-mxl"
@@ -31,6 +33,8 @@ mxl_save_prefix="$script_file_name-mxl-save"
 desktop_file_name="Diablo II"
 desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
 
+d2_stats_dir="$script_data_dir/d2-stats"
+
 send_notify() {
 	notify-send -i "$script_icon_file" "$script_title" "$1"
 }
@@ -42,6 +46,10 @@ if ! [ -x "$(command -v zenity)" ]; then
 fi
 if ! [ -x "$(command -v 7z)" ]; then
 	send_notify "7z not installed"
+	exit 1;
+fi
+if ! [ -x "$(command -v unrar)" ]; then
+	send_notify "unrar not installed"
 	exit 1;
 fi
 if ! [ -x "$(command -v jq)" ]; then
@@ -106,14 +114,8 @@ exec_diablo() {
 
 	install_glide
 
-	# -3dfx -ns -sndbkg -skiptobnet
-	d2_args="-3dfx"
-	if [ "$skip_to_mxl_login" = "true" ]; then
-		d2_args="${d2_args} -skiptobnet"
-	fi
-
 	cd "$d2_binary_dir"
-	env WINEPREFIX="$wineprefix" $wine start /unix "Diablo II.exe" $d2_args
+	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_exec" "$d2_args"
 }
 
 exec_download_mxl() {
@@ -179,7 +181,7 @@ exec_patch_mxl() {
 
     # List path files
     cd "$patch_files_dir"
-    patch_file_result=$( ls -r *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --height=300 --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+    patch_file_result=$( ls -r *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
     if  [ "$?" -eq 0 ] && [ "$patch_file_result" != "" ]; then
         (
@@ -205,13 +207,56 @@ exec_patch_mxl() {
     fi
 }
 
+
+exec_d2_stats() {
+    if [ ! -f "$d2_stats_dir/D2Stats.exe" ]; then
+        zenity --question --text="D2Stats is required. Download now?"
+        if [ $? == 1 ]; then
+            exit 0;
+        fi
+        (
+            mkdir -p "$d2_stats_dir"
+            cd "$d2_stats_dir"
+            rar_file=d2-stats.rar
+            curl -Lk $d2_stats_url -o $rar_file
+            unrar x $rar_file
+            rm $rar_file
+            echo "# D2-Stats successfully downloaded"
+        ) | zenity --progress --text="Downloading D2-Stats" --auto-kill --pulsate
+    fi
+    if [ ! -f "$d2_binary_dir/sigma-loader.exe" ]; then
+        zenity --question --text="sigma-loader.exe is required. Download now?"
+        if [ $? == 1 ]; then
+            exit 0;
+        fi
+        (
+            curl -Lk $sigma_loader_url -o "$d2_binary_dir/sigma-loader.exe"
+            replace_config_file_value "d2_exec" "\"sigma-loader.exe\""
+            echo "# sigma-loader.exe successfully downloaded"
+        ) | zenity --progress --text="Downloading sigma-loader.exe" --auto-kill --pulsate
+    fi
+
+	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_stats_dir/D2Stats.exe"
+	
+	# Workaround for disabling D2 Stats system tray
+	for i in 1 2 3 4 5; do
+	    sleep 1
+        win_result=$(wmctrl -l | grep "Wine System Tray")
+	    if [ "$win_result" != "" ]; then
+	        wmctrl -c 'Wine System Tray'
+	        echo "Wine System Tray closed"
+            break;
+        fi
+	done
+}
+
 exec_d2_video_settings() {
 	if [ ! -f "$d2_binary_dir/D2VidTst.exe" ]; then
 		show_zenity_error "$d2_binary_dir/D2VidTst.exe not found"
 		exit 1;
 	fi
 	cd "$d2_binary_dir"
-	env WINEPREFIX="$wineprefix" $wine start /unix "D2VidTst.exe"  
+	env WINEPREFIX="$wineprefix" $wine start /unix "D2VidTst.exe"
 }
 
 exec_glide_settings() {
@@ -239,6 +284,36 @@ exec_import_data() {
 	fi
 }
 
+show_help() {
+    zenity --text-info --width=500 --height=500 --html --filename="$script_help_file"
+}
+
+replace_config_file_value() {
+    key=$1
+    value=$2
+    # Maybe -c is needed
+    sed -i "s/\($key *= *\).*/\1$value/" $script_config_file
+    send_notify "$key was changed to $value in $script_config_file"
+}
+
+# Create config file
+if [ ! -f "$script_config_file" ]; then
+	zenity --info --width=250 --window-icon="$script_icon_file" --text="Please choose Diablo II binary dir..."
+	directory=$(zenity --file-selection --directory)
+	if [ "$directory" != "" ]; then
+		echo "wine=\"$script_data_dir/wine\"" >> $script_config_file
+		echo "wineprefix=\"$script_dir/.wineprefix\"" >> $script_config_file
+		echo "d2_binary_dir=\"$directory\"" >> $script_config_file
+		echo "d2_exec=\"Diablo II.exe\"" >> $script_config_file
+		echo "d2_args=\"-3dfx -skiptobnet\"" >> $script_config_file		
+	else
+		exit 1;
+	fi
+fi
+
+# Import config file
+. "$script_config_file"
+
 # Check for wine standalone
 if [ ! -f "$wine" ]; then
     zenity --question --text="Wine Standalone is required. Download now?"
@@ -247,23 +322,13 @@ if [ ! -f "$wine" ]; then
     fi
     exec_wine_download
 fi
-# Create config file
-if [ ! -f "$script_settings_file" ]; then
-	zenity --info --width=250 --window-icon="$script_icon_file" --text="Please choose Diablo II binary dir..."
-	directory=$(zenity --file-selection --directory)
-	if [ "$directory" != "" ]; then
-		echo "d2_binary_dir=\"$directory\"" >> $script_settings_file
-		echo "skip_to_mxl_login=false" >> $script_settings_file
-	else
-		exit 1;
-	fi
-fi
-
-# Import settings file
-. "$script_settings_file"
 
 # Main
 while(true); do
+
+    # Refresh config file
+    . "$script_config_file"
+    
     mxl_status="$mxl_title not installed!"
 	d2_xml_version_file="$d2_binary_dir/$patch_file_prefix.version"
 
@@ -274,19 +339,21 @@ while(true); do
 	item_01="Start Diablo II"
 	item_02="Download latest $mxl_title patch"
 	item_03="Install local $mxl_title patch"
-	item_04="Open D2 Video Settings"
-	item_05="Open Glide Settings"
-	item_06="Import $mxl_title Savegames"
-	item_07="Export $mxl_title Savegames"
+	item_04="Open D2 Stats"
+	item_05="Open D2 Video Settings"
+	item_06="Open Glide Settings"
+	item_07="Import $mxl_title Savegames"
+	item_08="Export $mxl_title Savegames"
 
 	if [ ! -f $desktop_file ]; then
-		item_08="Create Menu Entry"
+		item_09="Create Menu Entry"
 	else
-		item_08="Remove Menu Entry"
+		item_09="Remove Menu Entry"
 	fi
+	item_10="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=300 --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08")
+    result=$(zenity --list --radiolist --height=350 --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10")
 
     # If user exit
     if [ $? = 1 ]; then
@@ -303,22 +370,28 @@ while(true); do
         exec_patch_mxl
     fi
     if [ "$result" = "$item_04" ]; then
-        exec_d2_video_settings
+        exec_d2_stats
     fi
     if [ "$result" = "$item_05" ]; then
-        exec_glide_settings
+        exec_d2_video_settings
     fi
     if [ "$result" = "$item_06" ]; then
-        exec_import_data
+        exec_glide_settings
     fi
     if [ "$result" = "$item_07" ]; then
-        exec_export_data
+        exec_import_data
     fi
     if [ "$result" = "$item_08" ]; then
+        exec_export_data
+    fi
+    if [ "$result" = "$item_09" ]; then
         if [ ! -f "$desktop_file" ]; then
             create_desktop_file
         else
             remove_desktop_file
         fi
+    fi
+    if [ "$result" = "$item_10" ]; then
+        show_help
     fi
 done

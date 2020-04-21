@@ -1,6 +1,7 @@
 res/patches/
+res/d2-stats/
 res/wine
 diablo2/
 .wineprefix/
-settings.conf
+d2launcher.conf
 *~

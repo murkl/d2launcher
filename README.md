@@ -11,7 +11,9 @@ Enjoy the simplicity :)
 ## Features
 * Standalone (no wine installation required)
 * Downloads latest Median XL patch
+* Median XL version management
 * Import/Export of savegames
+* D2 Stats included
 * Sven's Glide wrapper included
 * Diablo II 1.13c files to work with Median XL included
 
@@ -20,11 +22,11 @@ You will need a Diablo II installation. The script will ask for your for the loc
 
 ### Arch
 ```
-sudo pacman -S p7zip jq
+sudo pacman -S p7zip unrar jq wmctrl
 ```
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install p7zip jq
+sudo apt install p7zip unrar jq wmctrl
 ```
 
 ## Run the script
