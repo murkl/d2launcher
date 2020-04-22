@@ -7,33 +7,54 @@ script_file=$(readlink -f "$0")
 script_file_name=$(basename "$script_file")
 script_dir=$(dirname "$script_file")
 script_config_file="$script_dir/$script_file_name.conf"
-script_data_dir="$script_dir/res"
-script_icon_file=$script_data_dir/icon.png
-script_help_file="$script_data_dir/d2launcher-help.html"
+script_res_dir="$script_dir/res"
+script_icon_file=$script_res_dir/icon.png
+script_help_file="$script_res_dir/d2launcher-help.html"
 
-# Download urls
-wine_url="https://github.com/ferion11/Proton_Appimage/releases/download/continuous/proton-linux-x86-v4.2-PlayOnLinux-x86_64.AppImage"
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
-sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/latest/download/sigma-loader.exe"
+desktop_file_name="Diablo II"
+desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
 
-patch_files_dir="$script_data_dir/patches"
+# Create config file
+if [ ! -f "$script_config_file" ]; then
+	zenity --info --width=250 --window-icon="$script_icon_file" --text="Please choose Diablo II binary dir..."
+	directory=$(zenity --file-selection --directory)
+	if [ "$directory" != "" ]; then
+		echo "wine=\"$script_res_dir/wine\"" >> $script_config_file
+		echo "wineprefix=\"$script_dir/.wineprefix\"" >> $script_config_file
+		echo "d2_binary_dir=\"$directory\"" >> $script_config_file
+		echo "d2_exec=\"Diablo II.exe\"" >> $script_config_file
+		echo "d2_args=\"-3dfx -skiptobnet\"" >> $script_config_file		
+	else
+		exit 1;
+	fi
+fi
+
+# Import config file
+. "$script_config_file"
+
+patch_files_dir="$script_res_dir/patches"
 patch_file_prefix="d2launcher-mxl"
 
-d2_patch_data_file="$script_data_dir/d2-1.13c_files.zip"
-glide_data_file="$script_data_dir/gl32ogl14e.zip"
+# Local res files
+d2_patch_data_file="$script_res_dir/d2-1.13c_files.zip"
+glide_data_file="$script_res_dir/gl32ogl14e.zip"
 
+# Median XL
 mxl_title="Median XL"
 mxl_version_url=http://get.median-xl.com/launcher/?get=versions
 mxl_dlls_url=http://get.median-xl.com/launcher/?get=dlls
 mxl_mod_url=http://get.median-xl.com/launcher/?get=mod
 
-mxl_data_dir="$wineprefix/drive_c/users/steamuser/Application Data/MedianXL"
-mxl_save_prefix="$script_file_name-mxl-save"
+mxl_savegames_dir="$wineprefix/drive_c/users/steamuser/Application Data/MedianXL"
+mxl_savegames_prefix="$script_file_name-mxl-save"
 
-desktop_file_name="Diablo II"
-desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
+# D2 Stats
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
+d2_stats_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/latest/download/sigma-loader.exe"
+d2_stats_dir="$script_res_dir/d2-stats"
 
-d2_stats_dir="$script_data_dir/d2-stats"
+# Wine AppImage url
+wine_url="https://github.com/ferion11/Proton_Appimage/releases/download/continuous/proton-linux-x86-v4.2-PlayOnLinux-x86_64.AppImage"
 
 send_notify() {
 	notify-send -i "$script_icon_file" "$script_title" "$1"
@@ -73,56 +94,7 @@ show_zenity_error() {
 	zenity --error --text "$1"
 }
 
-create_desktop_file() {
-	rm -f $desktop_file
-	echo "[Desktop Entry]" >> $desktop_file
-	echo "Name=$desktop_file_name" >> $desktop_file
-	echo "Icon=$script_icon_file" >> $desktop_file
-	echo "Exec=\"$script_file\"" >> $desktop_file
-	echo "Type=Application" >> $desktop_file
-	chmod +x $desktop_file
-	show_zenity_info "$desktop_file successfully created"
-}
-
-remove_desktop_file() {
-	rm -f $desktop_file
-	show_zenity_info "$desktop_file successfully removed"
-}
-
-install_glide() {
-	if [ ! -f "$d2_binary_dir/glide-init.exe" ]; then
-		if [ ! -f "$glide_data_file" ]; then
-			zenity_error "$glide_data_file not found!"
-			exit 1;
-		fi
-	    unzip -o "$glide_data_file" -d "$d2_binary_dir"
-	    send_notify "Glide wrapper was installed"
-	fi
-}
-
-exec_wine_download() {
-    (
-        tmp_file="/tmp/wine.tmp"
-        curl -Lk $wine_url -o $tmp_file
-        mv $tmp_file $wine
-        chmod +x $wine
-        echo "# Wine standalone successfully downloaded"
-    ) | zenity --progress --text="Downloading Wine standalone" --auto-kill --pulsate
-}
-
-exec_diablo() {
-	if [ ! -f "$d2_binary_dir/Diablo II.exe" ]; then
-		show_zenity_error "$d2_binary_dir/Diablo II.exe not found"
-		exit 1;
-	fi
-
-	install_glide
-
-	cd "$d2_binary_dir"
-	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_exec" "$d2_args"
-}
-
-exec_download_mxl() {
+show_mxl_download_gui() {
 	# Parse mxl patch infos
 	latest_mxl_patch_json=$(curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]')
 	latest_mxl_patch_version=$(echo "$latest_mxl_patch_json" | jq -r '.name' | cut -f3 -d" ")
@@ -172,7 +144,7 @@ exec_download_mxl() {
   fi
 }
 
-exec_patch_mxl() {
+show_mxl_patch_gui() {
 	if [ ! -d "$patch_files_dir" ]; then
 		show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
 		exit 1;
@@ -211,6 +183,21 @@ exec_patch_mxl() {
     fi
 }
 
+show_help_gui() {
+    zenity --text-info --width=500 --height=500 --html --filename="$script_help_file"
+}
+
+exec_diablo() {
+	if [ ! -f "$d2_binary_dir/Diablo II.exe" ]; then
+		show_zenity_error "$d2_binary_dir/Diablo II.exe not found"
+		exit 1;
+	fi
+
+	install_glide
+
+	cd "$d2_binary_dir"
+	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_exec" "$d2_args"
+}
 
 exec_d2_stats() {
     if [ ! -f "$d2_stats_dir/D2Stats.exe" ]; then
@@ -235,7 +222,7 @@ exec_d2_stats() {
             exit 0;
         fi
         (
-            curl -Lk $sigma_loader_url -o "$d2_binary_dir/sigma-loader.exe"
+            curl -Lk $d2_stats_sigma_loader_url -o "$d2_binary_dir/sigma-loader.exe"
             replace_config_file_value "d2_exec" "\"sigma-loader.exe\""
             echo "# sigma-loader.exe successfully downloaded"
         ) | zenity --progress --text="Downloading sigma-loader.exe" --auto-kill --pulsate
@@ -273,24 +260,31 @@ exec_glide_settings() {
 exec_export_data() {
 	directory=$(zenity --file-selection --directory)
 	if [ "$directory" != "" ]; then
-		filename="$mxl_save_prefix-$(date "+%Y%m%d%H%M").zip"
-		cd "$mxl_data_dir"
+		filename="$mxl_savegames_prefix-$(date "+%Y%m%d%H%M").zip"
+		cd "$mxl_savegames_dir"
 		zip -r -0 "$directory/$filename" .
 		show_zenity_info "Data successfully exported: $directory/$filename"
 	fi
 }
 
 exec_import_data() {
-	file=$(zenity --file-selection --file-filter="$mxl_save_prefix-*.zip")
-	mkdir -p "$mxl_data_dir"
+	file=$(zenity --file-selection --file-filter="$mxl_savegames_prefix-*.zip")
+	mkdir -p "$mxl_savegames_dir"
 	if [ "$file" != "" ]; then
-		unzip -o "$file" -d "$mxl_data_dir"
-		show_zenity_info "$mxl_data_dir successfully imported"
+		unzip -o "$file" -d "$mxl_savegames_dir"
+		show_zenity_info "$mxl_savegames_dir successfully imported"
 	fi
 }
 
-show_help() {
-    zenity --text-info --width=500 --height=500 --html --filename="$script_help_file"
+install_glide() {
+	if [ ! -f "$d2_binary_dir/glide-init.exe" ]; then
+		if [ ! -f "$glide_data_file" ]; then
+			zenity_error "$glide_data_file not found!"
+			exit 1;
+		fi
+	    unzip -o "$glide_data_file" -d "$d2_binary_dir"
+	    send_notify "Glide wrapper was installed"
+	fi
 }
 
 replace_config_file_value() {
@@ -301,23 +295,21 @@ replace_config_file_value() {
     send_notify "$key was changed to $value in $script_config_file"
 }
 
-# Create config file
-if [ ! -f "$script_config_file" ]; then
-	zenity --info --width=250 --window-icon="$script_icon_file" --text="Please choose Diablo II binary dir..."
-	directory=$(zenity --file-selection --directory)
-	if [ "$directory" != "" ]; then
-		echo "wine=\"$script_data_dir/wine\"" >> $script_config_file
-		echo "wineprefix=\"$script_dir/.wineprefix\"" >> $script_config_file
-		echo "d2_binary_dir=\"$directory\"" >> $script_config_file
-		echo "d2_exec=\"Diablo II.exe\"" >> $script_config_file
-		echo "d2_args=\"-3dfx -skiptobnet\"" >> $script_config_file		
-	else
-		exit 1;
-	fi
-fi
+create_desktop_file() {
+	rm -f $desktop_file
+	echo "[Desktop Entry]" >> $desktop_file
+	echo "Name=$desktop_file_name" >> $desktop_file
+	echo "Icon=$script_icon_file" >> $desktop_file
+	echo "Exec=\"$script_file\"" >> $desktop_file
+	echo "Type=Application" >> $desktop_file
+	chmod +x $desktop_file
+	show_zenity_info "$desktop_file successfully created"
+}
 
-# Import config file
-. "$script_config_file"
+remove_desktop_file() {
+	rm -f $desktop_file
+	show_zenity_info "$desktop_file successfully removed"
+}
 
 # Check for wine standalone
 if [ ! -f "$wine" ]; then
@@ -325,7 +317,13 @@ if [ ! -f "$wine" ]; then
     if [ $? == 1 ]; then
         exit 0;
     fi
-    exec_wine_download
+    (
+        tmp_file="/tmp/wine.tmp"
+        curl -Lk $wine_url -o $tmp_file
+        mv $tmp_file $wine
+        chmod +x $wine
+        echo "# Wine standalone successfully downloaded"
+    ) | zenity --progress --text="Downloading Wine standalone" --auto-kill --pulsate
 fi
 
 # Main
@@ -369,10 +367,10 @@ while(true); do
         exit 0;
     fi
     if [ "$result" = "$item_02" ]; then
-        exec_download_mxl
+        show_mxl_download_gui
     fi
     if [ "$result" = "$item_03" ]; then
-        exec_patch_mxl
+        show_mxl_patch_gui
     fi
     if [ "$result" = "$item_04" ]; then
         exec_d2_stats
@@ -397,6 +395,6 @@ while(true); do
         fi
     fi
     if [ "$result" = "$item_10" ]; then
-        show_help
+        show_help_gui
     fi
 done
