@@ -4,26 +4,26 @@
 script_title="Diablo II • Median XL • Standalone"
 
 script_file=$(readlink -f "$0")
-script_file_name=$(basename "$script_file")
 script_dir=$(dirname "$script_file")
-script_config_file="$script_dir/$script_file_name.conf"
+script_id=$(basename "$script_file")
+script_config_file="$script_dir/$script_id.conf"
 script_res_dir="$script_dir/res"
 script_icon_file=$script_res_dir/icon.png
 script_help_file="$script_res_dir/d2launcher-help.html"
 
 desktop_file_name="Diablo II"
-desktop_file=$HOME/.local/share/applications/$script_file_name.desktop
+desktop_file=$HOME/.local/share/applications/$script_id.desktop
 
 # Create config file
 if [ ! -f "$script_config_file" ]; then
 	zenity --info --width=250 --window-icon="$script_icon_file" --text="Please choose Diablo II binary dir..."
 	directory=$(zenity --file-selection --directory)
 	if [ "$directory" != "" ]; then
-		echo "wine=\"$script_res_dir/wine\"" >> $script_config_file
-		echo "wineprefix=\"$script_dir/.wineprefix\"" >> $script_config_file
 		echo "d2_binary_dir=\"$directory\"" >> $script_config_file
 		echo "d2_exec=\"Diablo II.exe\"" >> $script_config_file
 		echo "d2_args=\"-3dfx -skiptobnet\"" >> $script_config_file		
+		echo "wine=\""'$script_res_dir'"/wine\"" >> $script_config_file
+		echo "wineprefix=\""'$script_dir'"/.wineprefix\"" >> $script_config_file
 	else
 		exit 1;
 	fi
@@ -46,7 +46,7 @@ mxl_dlls_url=http://get.median-xl.com/launcher/?get=dlls
 mxl_mod_url=http://get.median-xl.com/launcher/?get=mod
 
 mxl_savegames_dir="$wineprefix/drive_c/users/steamuser/Application Data/MedianXL"
-mxl_savegames_prefix="$script_file_name-mxl-save"
+mxl_savegames_prefix="$script_id-mxl-save"
 
 # D2 Stats
 d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
@@ -83,7 +83,7 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 fi
 
 zenity() {
-	/usr/bin/zenity --name="$script_file_name" --title="$script_title" --window-icon="$script_icon_file" --height=130 --width=350 "$@" 2>/dev/null
+	/usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=130 --width=350 "$@" 2>/dev/null
 }
 
 show_zenity_info() {
@@ -157,7 +157,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir"
-    patch_file_result=$( ls -r *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+    patch_file_result=$( ls -r *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --ok-label="Patch" --cancel-label="Cancel" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
     if  [ "$?" -eq 0 ] && [ "$patch_file_result" != "" ]; then
         (
@@ -356,7 +356,7 @@ while(true); do
 	item_10="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=350 --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10")
+    result=$(zenity --list --radiolist --height=350 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10")
 
     # If user exit
     if [ $? = 1 ]; then
