@@ -324,7 +324,7 @@ exec_glide_settings() {
 }
 
 show_edit_config() {
-    result=$(zenity --text-info --height=250 --width=500 --ok-label="Save" --cancel-label="Cancel" --editable --filename="$script_config_file")
+    result=$(zenity --text-info --height=400 --width=800 --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
         echo "$result" > $script_config_file
         send_notify "$script_config_file saved"
@@ -385,11 +385,11 @@ while(true); do
     # Refresh config file
     . "$script_config_file"
     
-    mxl_status="$mxl_title not installed!"
+    mxl_status="<small><b>$mxl_title not installed!</b></small>"
 	d2_xml_version_file="$d2_binary_dir/$patch_file_prefix.version"
 
 	if [ -f "$d2_xml_version_file" ]; then
-		mxl_status="Installed $mxl_title version: "$(cat $d2_xml_version_file)
+		mxl_status="<small><b>Installed $mxl_title version:</b> "$(cat $d2_xml_version_file)"</small>"
 	fi
 
 	item_01="Diablo II"
@@ -409,7 +409,7 @@ while(true); do
 	item_11="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=350 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
+    result=$(zenity --list --radiolist --height=360 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
 
     # If user exit
     if [ $? = 1 ]; then
@@ -436,6 +436,8 @@ while(true); do
     fi
     if [ "$result" = "$item_05" ]; then
         show_edit_config
+        # Refresh config file
+        . "$script_config_file"
     fi
     if [ "$result" = "$item_06" ]; then
         show_mxl_download_gui
