@@ -232,7 +232,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --ok-label="Patch" --cancel-label="Cancel" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height=350 --ok-label="Patch" --cancel-label="Cancel" --text="<b>Choose $mxl_title patch to install</b>\n" --column="Available local patches" )
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
@@ -394,11 +394,11 @@ while(true); do
     # Refresh config file
     . "$script_config_file"
     
-    mxl_status="<small><b>$mxl_title not installed!</b></small>"
+    mxl_status="<b>$mxl_title not installed!</b>"
 	d2_xml_version_file="$d2_binary_dir/$patch_file_prefix.version"
 
 	if [ -f "$d2_xml_version_file" ]; then
-		mxl_status="<small><b>Installed $mxl_title version:</b> $(cat "$d2_xml_version_file")</small>"
+		mxl_status="<b>Installed $mxl_title version:</b> $(cat "$d2_xml_version_file")"
 	fi
 
 	item_01="Diablo II"
@@ -418,7 +418,7 @@ while(true); do
 	item_11="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=360 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
+    result=$(zenity --list --radiolist --height=360 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
 
     # If user exit
     if [ $? = 1 ]; then
