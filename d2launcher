@@ -418,7 +418,7 @@ while(true); do
 	item_11="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=360 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
+    result=$(zenity --list --radiolist --height=350 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
 
     # If user exit
     if [ $? = 1 ]; then
