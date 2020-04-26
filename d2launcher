@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # https://github.com/murkl/d2launcher
 
 script_title="Diablo II • Median XL • Standalone"
@@ -11,11 +11,18 @@ script_res_dir="$script_dir/res"
 script_icon_file="$script_res_dir/icon.png"
 script_help_file="$script_res_dir/d2launcher-help.html"
 
+# Config values
+d2_binary_dir=""
+d2_exec=""
+d2_args=""
+
 # Create config file
 if [ ! -f "$script_config_file" ]; then
-    echo "d2_binary_dir=\"\"" >> $script_config_file
-    echo "d2_exec=\"Diablo II.exe\"" >> $script_config_file
-    echo "d2_args=\"-3dfx\"" >> $script_config_file
+    {
+        echo "d2_binary_dir=\"\""
+        echo "d2_exec=\"Diablo II.exe\""
+        echo "d2_args=\"-3dfx\""
+    } >> "$script_config_file"
 fi
 
 # Import config file
@@ -64,7 +71,7 @@ log() {
 }
 
 send_notify() {
-    log "NOTIFY $1"
+    log "$1"
 	notify-send -i "$script_icon_file" "$script_title" "$1"
 }
 
@@ -95,12 +102,12 @@ zenity() {
 }
 
 show_zenity_info() {
-    log "INFO $1"
+    log "$1"
 	zenity --info --text "$1"
 }
 
 show_zenity_error() {
-    log "ERROR $1"
+    log "$1"
 	zenity --error --text "$1"
 }
 
@@ -119,7 +126,7 @@ check_d2_binary_dir() {
 check_wine_standalone() {
     if [ ! -f "$wine" ]; then
         zenity --question --text="Wine Standalone is required. Download now?"
-        if [ $? == 1 ]; then
+        if [ $? = 1 ]; then
             exit 0;
         fi
         (
@@ -131,15 +138,15 @@ check_wine_standalone() {
 
 install_wine() {
     tmp_file="/tmp/wine.tmp"
-    curl -Lk $wine_url -o $tmp_file
-    mv $tmp_file $wine
-    chmod +x $wine
+    curl -Lk "$wine_url" -o "$tmp_file"
+    mv "$tmp_file" "$wine"
+    chmod +x "$wine"
 }
 
 check_glide_installation() {
     if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
         zenity --question --text="Glide Wrapper not installed. Install now?"
-        if [ $? == 1 ]; then
+        if [ $? = 1 ]; then
             exit 0;
         fi
         (
@@ -160,9 +167,9 @@ install_glide() {
 show_mxl_download_gui() {
 	# Parse mxl patch infos
     latest_mxl_patch_json_file="/tmp/d2launcher_latest_mxl_patch.json"
-    ( curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > $latest_mxl_patch_json_file )| zenity --progress --text="Fetching latest $mxl_title version info" --pulsate --auto-close
+    ( curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file" )| zenity --progress --text="Fetching latest $mxl_title version info" --pulsate --auto-close
 
-	latest_mxl_patch_version=$(cat "$latest_mxl_patch_json_file" | jq -r '.name' | cut -f3 -d" ")
+	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
 	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
 
 	if [ "$latest_mxl_patch_version" = "" ]; then
@@ -178,14 +185,14 @@ show_mxl_download_gui() {
         tmp_dir="/tmp/$latest_mxl_patch_prefix"
         rm -f -r "$tmp_dir"
         mkdir -p "$tmp_dir"
-        cd "$tmp_dir"
+        cd "$tmp_dir" || exit
 
         ( # Download latest Median XL patch
             echo "# Downloading $mxl_title $latest_mxl_patch_version dlls ..."
-            curl $mxl_dlls_url -o $tmp_dir/dlls.7z
+            curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
 
             echo "# Downloading $mxl_title $latest_mxl_patch_version mod ..."
-            curl $mxl_mod_url -o $tmp_dir/mod.7z
+            curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"
 
             echo "# Extracting $mxl_title dll files ..."
             7z e "$tmp_dir/dlls.7z" -aoa
@@ -224,10 +231,10 @@ show_mxl_patch_gui() {
 	fi
 
     # List path files
-    cd "$patch_files_dir"
-    patch_file_result=$( ls -r *.zip | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --ok-label="Patch" --cancel-label="Cancel" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
+    cd "$patch_files_dir" || exit
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --height=350 --ok-label="Patch" --cancel-label="Cancel" --text="Choose $mxl_title patch to install\n" --column="Available local patches" )
 
-    if  [ "$?" -eq 0 ] && [ "$patch_file_result" != "" ]; then
+    if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
             patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
@@ -243,7 +250,7 @@ show_mxl_patch_gui() {
             echo "$patch_version" > "$d2_binary_dir/$patch_file_prefix.version"
             echo "# $mxl_title $patch_version successfully patched"
 
-        ) | zenity --progress --text="Patching $mxl_title $patch_version" --auto-kill --pulsate
+        ) | zenity --progress --text="Patching $mxl_title" --auto-kill --pulsate
 
         if [ "$?" = -1 ] ; then
             show_zenity_error "Installation error"
@@ -271,32 +278,32 @@ exec_diablo() {
 exec_d2_stats() {
     if [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
         zenity --question --text="D2Stats is required. Download now?"
-        if [ $? == 1 ]; then
+        if [ $? = 1 ]; then
             exit 0;
         fi
         (
             mkdir -p "$d2_stats_res_dir"
-            cd "$d2_stats_res_dir"
+            cd "$d2_stats_res_dir" || exit
             rar_file=d2-stats.rar
-            curl -Lk $d2_stats_url -o $rar_file
-            unrar x $rar_file
-            rm $rar_file
+            curl -Lk "$d2_stats_url" -o "$rar_file"
+            unrar x "$rar_file"
+            rm "$rar_file"
             echo "# D2Stats successfully downloaded"
         ) | zenity --progress --text="Downloading D2Stats" --auto-kill --pulsate
     fi
     
     if [ ! -f "$d2_binary_dir/$d2_sigma_loader_exe" ]; then
         zenity --question --text="$d2_sigma_loader_exe is required. Download now?"
-        if [ $? == 1 ]; then
+        if [ $? = 1 ]; then
             exit 0;
         fi
         (
-            curl -Lk $d2_sigma_loader_url -o "$d2_binary_dir/$d2_sigma_loader_exe"
+            curl -Lk "$d2_sigma_loader_url" -o "$d2_binary_dir/$d2_sigma_loader_exe"
             echo "# $d2_sigma_loader_exe successfully downloaded"
         ) | zenity --progress --text="Downloading $d2_sigma_loader_exe" --auto-kill --pulsate
     fi
 
-	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_stats_res_dir/$d2_stats_exe"
+	env WINEPREFIX="$wineprefix" "$wine" start /unix "$d2_stats_res_dir/$d2_stats_exe"
 	
 	# Workaround for disabling D2 Stats system tray
 	for i in 1 2 3 4 5; do
@@ -304,7 +311,7 @@ exec_d2_stats() {
         win_result=$(wmctrl -l | grep "Wine System Tray")
 	    if [ "$win_result" != "" ]; then
 	        wmctrl -c 'Wine System Tray'
-	        echo "Wine System Tray closed"
+	        log "Wine System Tray closed"
             break;
         fi
 	done
@@ -315,18 +322,18 @@ exec_d2_video_settings() {
 		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
 		exit 1;
 	fi
-	env WINEPREFIX="$wineprefix" $wine start /unix "$d2_binary_dir/$d2_vid_test_exe"
+	env WINEPREFIX="$wineprefix" "$wine" start /unix "$d2_binary_dir/$d2_vid_test_exe"
 }
 
 exec_glide_settings() {
     check_glide_installation
-    env WINEPREFIX="$wineprefix" $wine start /unix "$d2_binary_dir/$d2_glide_exe"
+    env WINEPREFIX="$wineprefix" "$wine" start /unix "$d2_binary_dir/$d2_glide_exe"
 }
 
 show_edit_config() {
     result=$(zenity --text-info --height=400 --width=800 --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
-        echo "$result" > $script_config_file
+        echo "$result" > "$script_config_file"
         send_notify "$script_config_file saved"
     fi
 }
@@ -339,7 +346,7 @@ exec_export_data() {
 	directory=$(zenity --file-selection --directory)
 	if [ "$directory" != "" ]; then
 		filename="$mxl_savegames_prefix-$(date "+%Y-%m-%d-%H%M").zip"
-		cd "$mxl_savegames_dir"
+		cd "$mxl_savegames_dir" || exit
 		zip -r -0 "$directory/$filename" .
 		show_zenity_info "Data successfully exported: $directory/$filename"
 	fi
@@ -357,23 +364,25 @@ exec_import_data() {
 replace_config_file_value() {
     key=$1
     value=$2
-    sed -i "s#$key=.*#$key=\"$value\"#g" $script_config_file
+    sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
     send_notify "$key was set to $value"
 }
 
 create_desktop_file() {
-	rm -f $desktop_file
-	echo "[Desktop Entry]" >> $desktop_file
-	echo "Name=$desktop_file_name" >> $desktop_file
-	echo "Icon=$script_icon_file" >> $desktop_file
-	echo "Exec=\"$script_file\"" >> $desktop_file
-	echo "Type=Application" >> $desktop_file
-	chmod +x $desktop_file
+	rm -f "$desktop_file"
+	{
+	    echo "[Desktop Entry]"
+	    echo "Name=$desktop_file_name"
+	    echo "Icon=$script_icon_file"
+	    echo "Exec=\"$script_file\""
+	    echo "Type=Application"
+	} >> "$desktop_file"
+	chmod +x "$desktop_file"
 	show_zenity_info "$desktop_file successfully created"
 }
 
 remove_desktop_file() {
-	rm -f $desktop_file
+	rm -f "$desktop_file"
 	show_zenity_info "$desktop_file successfully removed"
 }
 
@@ -389,7 +398,7 @@ while(true); do
 	d2_xml_version_file="$d2_binary_dir/$patch_file_prefix.version"
 
 	if [ -f "$d2_xml_version_file" ]; then
-		mxl_status="<small><b>Installed $mxl_title version:</b> "$(cat $d2_xml_version_file)"</small>"
+		mxl_status="<small><b>Installed $mxl_title version:</b> $(cat "$d2_xml_version_file")</small>"
 	fi
 
 	item_01="Diablo II"
@@ -401,7 +410,7 @@ while(true); do
 	item_07="Install $mxl_title"
 	item_08="Import Savegames"
 	item_09="Export Savegames"
-	if [ ! -f $desktop_file ]; then
+	if [ ! -f "$desktop_file" ]; then
 		item_10="Create Icon"
 	else
 		item_10="Remove Icon"
