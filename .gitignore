@@ -1,7 +1,7 @@
 res/patches/
 res/d2-stats/
-res/wine
-res/diablo2
+res/wine4.AppImage
+res/wine5.AppImage
 .wineprefix/
 d2launcher.conf
 *~
