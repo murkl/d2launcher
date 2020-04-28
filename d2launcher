@@ -8,7 +8,7 @@ script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
 script_config_file="$script_dir/$script_id.conf"
 script_res_dir="$script_dir/res"
-script_icon_file="$script_res_dir/icon.png"
+script_icon_file="$script_res_dir/icon.svg"
 script_help_file="$script_res_dir/d2launcher-help.html"
 
 # Config values
@@ -33,7 +33,7 @@ desktop_file_name="Diablo II"
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 
 # Wine AppImage
-wine_url="https://github.com/ferion11/Proton_Appimage/releases/download/continuous/proton-linux-x86-v4.2-PlayOnLinux-x86_64.AppImage"
+wine_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
 wine="$script_res_dir/wine"
 wineprefix="$script_dir/.wineprefix"
 wine_user="steamuser"
