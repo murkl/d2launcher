@@ -6,8 +6,10 @@ First of all I would like to thank the Median XL team for the great work! This z
 
 Enjoy the simplicity :)
 
-![d2launcher main](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/screenshot-menu.png)
-![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/screenshot-patches.png)
+![d2launcher menu](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/menu.png)
+![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/patches.png)
+![d2launcher configuration](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/configuration.png)
+![d2launcher help](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/help.png)
 
 ## Features
 * Standalone (no wine installation required)
