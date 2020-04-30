@@ -85,21 +85,25 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
-# Config values
+# Config default values
 d2_binary_dir=""
-d2_exec=""
-d2_args=""
+d2_exec="Diablo II.exe"
+d2_args="-3dfx"
 wine5_enabled=false
+gui_width=432
+gui_height=333
 desktop_icon=true
 
-# Create config file
+# Create new config file
 if [ ! -f "$script_config_file" ]; then
     {
-        echo "d2_binary_dir=\"\""
-        echo "d2_exec=\"Diablo II.exe\""
-        echo "d2_args=\"-3dfx\""
-        echo "wine5_enabled=\"false\""
-        echo "desktop_icon=\"true\""
+        echo "d2_binary_dir=\"$d2_binary_dir\""
+        echo "d2_exec=\"$d2_exec\""
+        echo "d2_args=\"$d2_args\""
+        echo "wine5_enabled=$wine5_enabled"
+        echo "gui_height=$gui_height"
+        echo "gui_width=$gui_width"
+        echo "desktop_icon=$desktop_icon"
     } >> "$script_config_file"
     send_notify "$script_config_file created"
 fi
@@ -108,7 +112,7 @@ fi
 . "$script_config_file"
 
 zenity() {
-	/usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=130 --width=350 "$@" 2>/dev/null
+	/usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=175 --width=$gui_width "$@" 2>/dev/null
 }
 
 show_zenity_info() {
@@ -123,7 +127,7 @@ show_zenity_error() {
 
 check_d2_binary_dir() {
     if [ ! -d "$d2_binary_dir" ]; then
-	    zenity --info --width=250 --text="Please choose Diablo II binary dir..."
+	    zenity --info --width=$gui_width --text="Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
 	    if [ "$directory" != "" ]; then
             replace_config_file_value "d2_binary_dir" "$directory"
@@ -259,7 +263,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height=380 --ok-label="Patch" --cancel-label="Cancel" --text="<b>Choose $mxl_title patch to install</b>\n" --column="Available local patches" )
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --width="$gui_width" --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="<b>Choose $mxl_title patch to install</b>\n" --column="Available local patches" )
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
@@ -287,7 +291,7 @@ show_mxl_patch_gui() {
 }
 
 show_help_gui() {
-    zenity --text-info --width=500 --height=500 --html --filename="$script_help_file"
+    zenity --text-info --width="$gui_width" --height="$gui_height" --html --filename="$script_help_file"
     return 0
 }
 
@@ -353,7 +357,7 @@ exec_d2_video_settings() {
 		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
 		exit 1
 	fi
-	env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$d2_binary_dir/$d2_vid_test_exe"
+    env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$d2_binary_dir/$d2_vid_test_exe"
 	return 0
 }
 
@@ -368,7 +372,7 @@ exec_wine_config() {
 }
 
 show_edit_config() {
-    result=$(zenity --text-info --height=400 --width=800 --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
+    result=$(zenity --text-info --width="$gui_width" --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
         send_notify "$script_config_file saved"
@@ -480,7 +484,7 @@ while(true); do
 	item_11="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height=380 --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
+    result=$(zenity --list --radiolist --width="$gui_width" --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
 
     # If user exit
     if [ $? = 1 ]; then
