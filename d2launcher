@@ -23,7 +23,7 @@ desktop_file_name="Diablo II"
 desktop_icon=true
 
 # Title theming
-title_color="#777777"
+title_color="#87270A"
 title_font="monospace"
 title_size="8"
 
@@ -281,7 +281,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1
-    info_text='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>Choose '$mxl_title' patch to install</b></span>'
+    info_text='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">Choose '$mxl_title' patch to install</span>'
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
@@ -400,7 +400,7 @@ show_edit_config() {
 }
 
 show_update_gui() {
-    show_zenity_question "Really update $script_id?\n\n<b>All local tracked git files will be reseted!</b>"
+    show_zenity_question "Installed version:\t<b>$script_id-$version</b>\n\n<b>All local tracked git files will be reseted!</b>\n\nReally update?"
     if [ $? = 1 ]; then
         log "User canceled"
         return 1
@@ -499,12 +499,12 @@ while(true); do
 		remove_desktop_file
 	fi
 	
-	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'D2LAUNCHER'</b>\t'$version'</span>'
+	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">D2LAUNCHER\t<b>'$version'</b></span>'
 	
     # Set Median XL version status
     menu_mxl_info_text="$mxl_title not installed!"
 	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		menu_mxl_info_text="<b>MEDIAN XL</b>\t$(cat "$d2_binary_dir/$mxl_version_file_name")"
+		menu_mxl_info_text="MEDIAN XL\t<b>$(cat "$d2_binary_dir/$mxl_version_file_name")</b>"
 	fi
 	menu_mxl_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$menu_mxl_info_text'</span>'
 	
