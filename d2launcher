@@ -15,8 +15,8 @@ script_icon_file="$script_res_dir/icon.svg"
 script_help_file="$script_res_dir/d2launcher-help.html"
 
 # Gui
-gui_width=432
-gui_height=333
+gui_width=450
+gui_height=375
 gui_dialog_height=175
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_file_name="Diablo II"
@@ -25,7 +25,7 @@ desktop_icon=true
 # Title theming
 title_color="#777777"
 title_font="monospace"
-title_size="10"
+title_size="8"
 
 # Wine AppImage
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
@@ -129,16 +129,23 @@ zenity() {
 show_zenity_info() {
     log "$1"
 	zenity --info --text "$1"
+	return "$?"
 }
 
 show_zenity_error() {
     log "$1"
 	zenity --error --text "$1"
+	return "$?"
+}
+
+show_zenity_question() {
+    zenity --question --text "$1"
+    return "$?"
 }
 
 check_d2_binary_dir() {
     if [ ! -d "$d2_binary_dir" ]; then
-	    zenity --info --text="Please choose Diablo II binary dir..."
+	    show_zenity_info "Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
 	    if [ "$directory" != "" ]; then
             replace_config_file_value "d2_binary_dir" "$directory"
@@ -154,7 +161,7 @@ check_wine_standalone() {
         if [ "$wine5_enabled" = "true" ]; then
             wine_version="5"
         fi
-        zenity --question --text="Wine $wine_version AppImage is required. Download now?"
+        show_zenity_question "Wine $wine_version AppImage is required. Download now?"
         if [ $? = 1 ]; then
             log "User canceled"
             return 1
@@ -182,7 +189,7 @@ install_wine() {
 
 check_glide_installation() {
     if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
-        zenity --question --text="Glide Wrapper not installed. Install now?"
+        show_zenity_question "Glide Wrapper not installed. Install now?"
         if [ $? = 1 ]; then
             log "User canceled"
             return 1;
@@ -274,7 +281,8 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="<b>Choose $mxl_title patch to install</b>\n" --column="Available local patches" )
+    info_text='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>Choose '$mxl_title' patch to install</b></span>'
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
@@ -322,7 +330,7 @@ exec_diablo() {
 
 exec_d2_stats() {
     if [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
-        zenity --question --text="D2Stats is required. Download now?"
+        show_zenity_question "D2Stats is required. Download now?"
         if [ $? = 1 ]; then
             return 1
         fi
@@ -338,7 +346,7 @@ exec_d2_stats() {
     fi
     
     if [ ! -f "$d2_binary_dir/$d2_sigma_loader_exe" ]; then
-        zenity --question --text="$d2_sigma_loader_exe is required. Download now?"
+        show_zenity_question "$d2_sigma_loader_exe is required. Download now?"
         if [ $? = 1 ]; then
             return 1
         fi
@@ -392,7 +400,7 @@ show_edit_config() {
 }
 
 show_update_gui() {
-    zenity --question --text="Really update $script_id?\n\n<b>All local tracked git files will be reseted!</b>"
+    show_zenity_question "Really update $script_id?\n\n<b>All local tracked git files will be reseted!</b>"
     if [ $? = 1 ]; then
         log "User canceled"
         return 1
@@ -407,9 +415,9 @@ show_update_gui() {
         cd "$script_dir"
         git reset --hard
         chmod +x "$script_file"
-        echo "# $script_id successfully updated\n"
+        echo "# \n$script_id successfully updated\n"
 
-    ) | zenity --progress --text="Updating $script_id\n" --pulsate
+    ) | zenity --progress --text="Updating $script_id" --pulsate
     return 0
 }
 
@@ -500,7 +508,7 @@ while(true); do
 	fi
 	menu_mxl_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$menu_mxl_info_text'</span>'
 	
-	menu_info="$menu_d2launcher_info\n$menu_mxl_info\n"
+	info_text="$menu_d2launcher_info\n$menu_mxl_info\n"
 	
     # Set default wine version info
 	wine_version_info=4
@@ -523,7 +531,7 @@ while(true); do
 	item_12="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$menu_info" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
+    result=$(zenity --list --radiolist --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$info_text" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
 
     # If user exit
     if [ $? = 1 ]; then
