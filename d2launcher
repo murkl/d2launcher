@@ -117,7 +117,7 @@ if [ ! -f "$script_config_file" ]; then
         echo "gui_width=$gui_width"
         echo "gui_height=$gui_height"
         echo "desktop_icon=$desktop_icon"
-        echo "update_check=$update_check"        
+        echo "update_check=$update_check"
     } >> "$script_config_file"
     send_notify "$script_config_file created"
 fi
@@ -147,17 +147,17 @@ show_zenity_question() {
 }
 
 check_for_update() {
-        if [ "$update_check" = "false" ]; then
-            return 0
-        fi
-        latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
-        if [ "$version" != "$latest_version" ]; then
-                send_notify "New updates available!"
-                return 1
-            else
-                log "No updates available (latest version: $latest_version)"
-        fi
+    if [ "$update_check" = "false" ]; then
         return 0
+    fi
+    latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
+    if [ "$version" != "$latest_version" ]; then
+        send_notify "New update available!"
+        return 1
+    else
+        log "No update available. (latest version: $latest_version)"
+        return 0
+    fi
 }
 
 check_d2_binary_dir() {
@@ -417,7 +417,17 @@ show_edit_config() {
 }
 
 show_update_gui() {
-    show_zenity_question "Installed version:\t<b>$script_id-$version</b>\n\n<b>All local tracked git files will be reseted!</b>\n\nReally update?"
+
+    tmp_file="/tmp/$script_id.version"
+    rm -f "$tmp_file"
+    ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
+    latest_version=$(< "$tmp_file")
+
+    version_info_text="<b>No Update available!</b>\n\nForce update?"
+    if [ "$version" != "$latest_version" ]; then
+        version_info_text="<b>New update available!</b>\n\n\Install update now?"
+    fi
+    show_zenity_question "Installed version:\t<b>$version</b>\nRemote version:\t<b>$latest_version</b>\n\n$version_info_text"
     if [ $? = 1 ]; then
         log "User canceled"
         return 1
@@ -429,14 +439,17 @@ show_update_gui() {
         latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
 		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
         
         echo "# $script_id successfully updated"
         
     ) | zenity --progress --text="Updating $script_id" --pulsate
-    return 0
+    
+    # Restart script
+    "$script_file" &
+    exit 0
 }
 
 exec_export_data() {
