@@ -20,12 +20,12 @@ script_icon_file="$script_res_dir/icon.svg"
 script_help_file="$script_res_dir/d2launcher-help.html"
 
 # Gui
-gui_width=450
-gui_height=375
-gui_dialog_height=175
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_file_name="Diablo II"
 desktop_icon=true
+gui_width=465
+gui_height=365
+gui_dialog_height=165
 
 # Title theming
 title_color="#87270A"
