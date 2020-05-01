@@ -2,7 +2,7 @@
 
 # https://github.com/murkl/d2launcher
 
-version=3.0.4
+version=3.0.5
 
 github_author=murkl
 github_repo=d2launcher
@@ -298,7 +298,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1
-    info_text='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">Choose '$mxl_title' patch to install</span>'
+    info_text='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>Choose '$mxl_title' patch to install</b></span>'
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
@@ -423,12 +423,12 @@ show_update_gui() {
     ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
     latest_version=$(< "$tmp_file")
 
-    version_info_text="No Update available!\n\n<b>Force update?</b>"
+    version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
     if [ "$version" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\nInstall update now?"
+        version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
     fi
-    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text\n"
-	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$version_text'</span>'
+    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
     show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"
@@ -534,12 +534,12 @@ while(true); do
 		remove_desktop_file
 	fi
 	
-	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">D2LAUNCHER\t<b>'$version'</b></span>'
+	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>D2LAUNCHER</b>\t'$version'</span>'
 	
     # Set Median XL version status
     menu_mxl_info_text="$mxl_title not installed!"
 	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		menu_mxl_info_text="MEDIAN XL\t<b>$(cat "$d2_binary_dir/$mxl_version_file_name")</b>"
+		menu_mxl_info_text="<b>MEDIAN XL</b>\t$(cat "$d2_binary_dir/$mxl_version_file_name")"
 	fi
 	menu_mxl_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$menu_mxl_info_text'</span>'
 	

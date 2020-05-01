@@ -16,7 +16,7 @@ Enjoy the simplicity :)
 * D2 Stats included (will download by script)
 * Sven's Glide wrapper included
 * Diablo II 1.13c files to work with Median XL included
-* Update feature (incl. notification)
+* Updater (incl. notification)
 * Configuration of every script variable
 * 100% GUI
 
