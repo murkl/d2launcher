@@ -10,13 +10,13 @@ Enjoy the simplicity :)
 
 ## Features
 * No wine installation required (wine AppImage will download by script)
-* Download latest Median XL patch
+* Download latest Median XL patch (inkc. notification on new updates)
 * Median XL version management
 * Import/Export of savegames
 * D2 Stats included (will download by script)
 * Sven's Glide wrapper included
 * Diablo II 1.13c files to work with Median XL included
-* Updater (incl. notification)
+* Updater (incl. notification on new updates)
 * Configuration of every script variable
 * 100% GUI
 
@@ -30,6 +30,7 @@ gui_width=465
 gui_height=365
 desktop_icon=true
 update_check=true
+mxl_update_check=true
 ```
 
 ## Dependencies

@@ -63,6 +63,7 @@ mxl_title="Median XL"
 mxl_version_url="http://get.median-xl.com/launcher/?get=versions"
 mxl_dlls_url="http://get.median-xl.com/launcher/?get=dlls"
 mxl_mod_url="http://get.median-xl.com/launcher/?get=mod"
+mxl_update_check=true
 
 mxl_savegames_dir="$wineprefix/drive_c/users/$wine_user/Application Data/MedianXL"
 mxl_savegames_prefix="$script_id-mxl-save"
@@ -118,6 +119,7 @@ if [ ! -f "$script_config_file" ]; then
         echo "gui_height=$gui_height"
         echo "desktop_icon=$desktop_icon"
         echo "update_check=$update_check"
+        echo "mxl_update_check=$mxl_update_check"
     } >> "$script_config_file"
     send_notify "$script_config_file created"
 fi
@@ -151,13 +153,37 @@ check_for_update() {
         return 0
     fi
     latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
-    if [ "$version" != "$latest_version" ]; then
-        send_notify "New update available!"
-        return 1
-    else
-        log "No update available. (latest version: $latest_version)"
+    if [ "$version" = "$latest_version" ]; then
+        log "No update available. (latest $script_id version: $latest_version)"
         return 0
     fi
+    return 1
+}
+
+check_for_mxl_update() {
+
+    if [ "$mxl_update_check" = "false" ]; then
+        return 0
+    fi    
+    # Parse mxl patch infos
+    latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
+    curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
+
+	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
+	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
+
+	if [ "$latest_mxl_patch_version" = "" ]; then
+		log "No connection to $mxl_title server"
+		return 0
+	fi
+
+    # Check if new mxl version available
+    if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
+        log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
+        return 0
+    fi
+    
+    return 1
 }
 
 check_d2_binary_dir() {
@@ -230,21 +256,9 @@ install_glide() {
 }
 
 show_mxl_download_gui() {
-	# Parse mxl patch infos
-    latest_mxl_patch_json_file="/tmp/d2launcher_latest_mxl_patch.json"
-    ( curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file" )| zenity --progress --text="Fetching latest $mxl_title version info" --pulsate --auto-close
-
-	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
-	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
-
-	if [ "$latest_mxl_patch_version" = "" ]; then
-		show_zenity_error "No connection to $mxl_title server"
-		return 1
-	fi
-
-    # Check if new mxl version available
-    if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
-        show_zenity_info "No updates available!\n\n$mxl_title $latest_mxl_patch_version patch file allready downloaded."
+    if check_for_mxl_update; then
+        show_zenity_info "No $mxl_title update available."
+        return 0
     else
         # Create tmp download dir
         tmp_dir="/tmp/$latest_mxl_patch_prefix"
@@ -277,9 +291,10 @@ show_mxl_download_gui() {
 
         if [ "$?" = -1 ] ; then
 	        show_zenity_error "Download error"
+	        return 0
         fi
-  fi
-  return 0
+        return 1
+    fi
 }
 
 show_mxl_patch_gui() {
@@ -512,7 +527,8 @@ remove_desktop_file() {
 	return 0
 }
 
-check_for_update &
+(check_for_update || send_notify "New $script_id update available") &
+(check_for_mxl_update || send_notify "New Median XL update available") &
 
 # Main
 while(true); do
