@@ -46,7 +46,7 @@ sudo apt install zenity p7zip unrar jq wmctrl
 ```
 
 ## Run the script
-On first execution you will ask for the Diablo II installtion dir (d2_binary_dir).
+On first execution you will ask for the Diablo II installation dir (d2_binary_dir).
 ```
 ./d2launcher
 ```
