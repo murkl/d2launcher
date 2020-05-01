@@ -6,7 +6,10 @@ First of all I would like to thank the Median XL team for the great work! This z
 
 Enjoy the simplicity :)
 
-![d2launcher screenshot](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png)
+![d2launcher menu](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/menu.png)
+![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/patches.png)
+![d2launcher configuration](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/configuration.png)
+![d2launcher help](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/help.png)
 
 ## Features
 * Standalone (no wine installation required)
@@ -26,6 +29,7 @@ wine5_enabled=true
 gui_height=333
 gui_width=432
 desktop_icon=true
+update_check=true
 ```
 
 ## Dependencies
@@ -33,12 +37,12 @@ You will need a Diablo II installation. The script will ask for your for the loc
 
 ### Arch
 ```
-sudo pacman -S p7zip unrar jq wmctrl
+sudo pacman -S zenity p7zip unrar jq wmctrl
 ```
 
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install p7zip unrar jq wmctrl
+sudo apt install zenity p7zip unrar jq wmctrl
 ```
 
 ## Run the script
