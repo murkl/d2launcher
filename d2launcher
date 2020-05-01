@@ -2,7 +2,7 @@
 
 # https://github.com/murkl/d2launcher
 
-version=3.0.2
+version=3.0.1
 
 github_author=murkl
 github_repo=d2launcher
@@ -423,11 +423,13 @@ show_update_gui() {
     ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
     latest_version=$(< "$tmp_file")
 
-    version_info_text="<b>No Update available!</b>\n\nForce update?"
+    version_info_text="No Update available!\n\n<b>Force update?</b>"
     if [ "$version" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\n\Install update now?"
+        version_info_text="<b>New update available!</b>\n\nInstall update now?"
     fi
-    show_zenity_question "Installed version:\t<b>$version</b>\nRemote version:\t<b>$latest_version</b>\n\n$version_info_text"
+    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text\n"
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$version_text'</span>'
+    show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"
         return 1
