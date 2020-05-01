@@ -1,5 +1,6 @@
 #!/bin/bash
-# https://github.com/murkl/d2launcher
+github_url=https://github.com/murkl/d2launcher
+version=3.0.0
 
 script_title="Diablo II • Median XL • Standalone"
 
@@ -20,6 +21,11 @@ gui_dialog_height=175
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_file_name="Diablo II"
 desktop_icon=true
+
+# Title theming
+title_color="#777777"
+title_font="monospace"
+title_size="10"
 
 # Wine AppImage
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
@@ -74,6 +80,10 @@ send_notify() {
 }
 
 # Check dependencies
+if ! [ -x "$(command -v git)" ]; then
+	send_notify "git not installed"
+	exit 1;
+fi
 if ! [ -x "$(command -v zenity)" ]; then
 	send_notify "zenity not installed"
 	exit 1;
@@ -381,6 +391,28 @@ show_edit_config() {
     return 0
 }
 
+show_update_gui() {
+    zenity --question --text="Really update $script_id?\n\n<b>All local tracked git files will be reseted!</b>"
+    if [ $? = 1 ]; then
+        log "User canceled"
+        return 1
+    fi
+    (
+        tmp_dir="/tmp/$script_id"
+        rm -R -f "$tmp_dir"
+        git clone "$github_url" "$tmp_dir"
+        rm -R -f "$script_dir/.git"
+        mv "$tmp_dir/.git" "$script_dir"
+        rm -R -f "$tmp_dir"
+        cd "$script_dir"
+        git reset --hard
+        chmod +x "$script_file"
+        echo "# $script_id successfully updated\n"
+
+    ) | zenity --progress --text="Updating $script_id\n" --pulsate
+    return 0
+}
+
 exec_export_data() {
     if [ ! -d "$mxl_savegames_dir" ]; then
 	    show_zenity_error "$mxl_savegames_dir not found"
@@ -459,16 +491,21 @@ while(true); do
 		remove_desktop_file
 	fi
 	
-	# Set default wine version info
+	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'D2LAUNCHER'</b>\t'$version'</span>'
+	
+    # Set Median XL version status
+    menu_mxl_info_text="$mxl_title not installed!"
+	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
+		menu_mxl_info_text="<b>MEDIAN XL</b>\t$(cat "$d2_binary_dir/$mxl_version_file_name")"
+	fi
+	menu_mxl_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$menu_mxl_info_text'</span>'
+	
+	menu_info="$menu_d2launcher_info\n$menu_mxl_info\n"
+	
+    # Set default wine version info
 	wine_version_info=4
 	if [ "$wine5_enabled" = "true" ]; then
 	    wine_version_info=5
-	fi
-	
-    # Set Median XL version status
-    mxl_status="<b>$mxl_title not installed!</b>"
-	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		mxl_status="<b>Installed $mxl_title version:</b> $(cat "$d2_binary_dir/$mxl_version_file_name")"
 	fi
     
     # Menu items
@@ -482,10 +519,11 @@ while(true); do
 	item_08="Import Savegames"
 	item_09="Export Savegames"
 	item_10="Configuration"
-	item_11="Help"
+	item_11="Update"
+	item_12="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$mxl_status\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11")
+    result=$(zenity --list --radiolist --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$menu_info" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
 
     # If user exit
     if [ $? = 1 ]; then
@@ -530,6 +568,10 @@ while(true); do
         show_edit_config || continue
     fi
     if [ "$result" = "$item_11" ]; then
+        show_update_gui || continue
+        break; exit 0;
+    fi
+    if [ "$result" = "$item_12" ]; then
         show_help_gui || continue
     fi
 done
