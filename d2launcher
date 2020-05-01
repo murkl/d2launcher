@@ -445,9 +445,9 @@ show_update_gui() {
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
         
-        echo "# $script_id successfully updated"
+        echo "# $script_id $latest_version successfully installed"
         
-    ) | zenity --progress --text="Updating $script_id" --pulsate
+    ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
     
     # Restart script
     "$script_file" &
