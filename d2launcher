@@ -406,6 +406,7 @@ show_update_gui() {
         log "User canceled"
         return 1
     fi
+    (
         tmp_dir=/tmp/$script_id.tmp
         rm -R -f "$tmp_dir"
         mkdir -p "$tmp_dir"
@@ -415,9 +416,9 @@ show_update_gui() {
 		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
-    (
+        
         echo "# $script_id successfully updated"
-
+        
     ) | zenity --progress --text="Updating $script_id" --pulsate
     return 0
 }
