@@ -6,19 +6,19 @@ First of all I would like to thank the Median XL team for the great work! This z
 
 Enjoy the simplicity :)
 
-![d2launcher menu](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/menu.png)
-![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/patches.png)
-![d2launcher configuration](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/configuration.png)
-![d2launcher help](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/help.png)
+![d2launcher screenshot](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png)
 
 ## Features
-* Standalone (no wine installation required)
-* Downloads latest Median XL patch
+* No wine installation required (wine AppImage will download by script)
+* Download latest Median XL patch
 * Median XL version management
 * Import/Export of savegames
-* D2 Stats included
+* D2 Stats included (will download by script)
 * Sven's Glide wrapper included
 * Diablo II 1.13c files to work with Median XL included
+* Update feature (incl. notification)
+* Configuration of every script variable
+* 100% GUI
 
 ## Example Configuration
 ```
@@ -26,14 +26,14 @@ d2_binary_dir="/home/$USER/.local/apps/diablo2"
 d2_exec="Diablo II.exe"
 d2_args="-3dfx"
 wine5_enabled=true
-gui_height=333
-gui_width=432
+gui_width=465
+gui_height=365
 desktop_icon=true
 update_check=true
 ```
 
 ## Dependencies
-You will need a Diablo II installation. The script will ask for your for the location.
+You will need a Diablo II installation! The script will ask for your for the location (d2_binary_dir).
 
 ### Arch
 ```
@@ -46,8 +46,7 @@ sudo apt install zenity p7zip unrar jq wmctrl
 ```
 
 ## Run the script
-On first execution you will ask for the Diablo II installtion dir.
-
+On first execution you will ask for the Diablo II installtion dir (d2_binary_dir).
 ```
 ./d2launcher
 ```
