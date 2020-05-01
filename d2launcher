@@ -1,6 +1,11 @@
 #!/bin/bash
-github_url=https://github.com/murkl/d2launcher
+
+# https://github.com/murkl/d2launcher
+
 version=3.0.0
+
+github_author=murkl
+github_repo=d2launcher
 
 script_title="Diablo II • Median XL • Standalone"
 
@@ -80,10 +85,6 @@ send_notify() {
 }
 
 # Check dependencies
-if ! [ -x "$(command -v git)" ]; then
-	send_notify "git not installed"
-	exit 1;
-fi
 if ! [ -x "$(command -v zenity)" ]; then
 	send_notify "zenity not installed"
 	exit 1;
@@ -405,17 +406,17 @@ show_update_gui() {
         log "User canceled"
         return 1
     fi
-    (
-        tmp_dir="/tmp/$script_id"
+        tmp_dir=/tmp/$script_id.tmp
         rm -R -f "$tmp_dir"
-        git clone "$github_url" "$tmp_dir"
-        rm -R -f "$script_dir/.git"
-        mv "$tmp_dir/.git" "$script_dir"
-        rm -R -f "$tmp_dir"
-        cd "$script_dir"
-        git reset --hard
+        mkdir -p "$tmp_dir"
+        latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
+        curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
+		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
+		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
-        echo "# \n$script_id successfully updated\n"
+    (
+        echo "# $script_id successfully updated"
 
     ) | zenity --progress --text="Updating $script_id" --pulsate
     return 0
