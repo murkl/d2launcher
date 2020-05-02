@@ -1,7 +1,8 @@
 # Diablo II • Median XL • Standalone
-No wine installation required!
 
 **Download: [d2launcher-latest](https://github.com/murkl/d2launcher/releases/latest)**
+
+No wine installation required!
 
 First of all I would like to thank the Median XL team for the great work! This zenity shell script downloads a wine standalone version and the latest Median XL mod and save this files locally. After that you can simple patch your Diablo II with this script to work with the latest Median XL version. The patch also includes Sven's glide wrapper.
 
