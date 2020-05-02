@@ -2,7 +2,7 @@
 
 # https://github.com/murkl/d2launcher
 
-version=3.0.6
+version=3.0.7
 
 github_author=murkl
 github_repo=d2launcher
@@ -153,6 +153,10 @@ check_for_update() {
         return 0
     fi
     latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
+    if [ "$latest_version" = "" ]; then
+        log "GitHub connection error"
+        return 0
+    fi
     if [ "$version" = "$latest_version" ]; then
         log "No update available. (latest $script_id version: $latest_version)"
         return 0
@@ -437,6 +441,10 @@ show_update_gui() {
     rm -f "$tmp_file"
     ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
     latest_version=$(< "$tmp_file")
+    if [ "$latest_version" = "" ]; then
+        send_notify "GitHub connection error"
+        return 1
+    fi
 
     version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
     if [ "$version" != "$latest_version" ]; then
