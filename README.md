@@ -10,7 +10,7 @@ Enjoy the simplicity :)
 ## Features
 * No wine installation required (wine AppImage will download by script)
 * Sandbox architecture
-* Less dependencies
+* Leightweight & less dependencies
 * Download latest Median XL patch (incl. notification on new updates)
 * Median XL version management
 * Import/Export of savegames
