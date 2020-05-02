@@ -18,7 +18,7 @@ update_check=true
 script_config_file="$script_dir/$script_id.conf"
 script_res_dir="$script_dir/res"
 script_icon_file="$script_res_dir/icon.svg"
-script_help_file="$script_res_dir/d2launcher-help.html"
+script_help_file="$script_res_dir/$script_id-help.html"
 
 # Gui
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
@@ -77,8 +77,27 @@ d2_stats_exe="D2Stats.exe"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 d2_sigma_loader_exe="sigma-loader.exe"
 
+# Create new config file
+if [ ! -f "$script_config_file" ]; then
+    {
+        echo "d2_binary_dir=\"$d2_binary_dir\""
+        echo "d2_exec=\"$d2_exec\""
+        echo "d2_args=\"$d2_args\""
+        echo "wine5_enabled=$wine5_enabled"
+        echo "gui_width=$gui_width"
+        echo "gui_height=$gui_height"
+        echo "desktop_icon=$desktop_icon"
+        echo "update_check=$update_check"
+        echo "mxl_update_check=$mxl_update_check"
+    } >> "$script_config_file"
+    send_notify "$script_config_file created"
+fi
+
+# Import config file
+. "$script_config_file"
+
 log() {
-	echo "$(date "+%H:%M:%S") $script_id: $1"
+	echo "$(date "+%H:%M:%S") $script_id-$version: $1"
 }
 
 send_notify() {
@@ -112,44 +131,63 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
-# Create new config file
-if [ ! -f "$script_config_file" ]; then
-    {
-        echo "d2_binary_dir=\"$d2_binary_dir\""
-        echo "d2_exec=\"$d2_exec\""
-        echo "d2_args=\"$d2_args\""
-        echo "wine5_enabled=$wine5_enabled"
-        echo "gui_width=$gui_width"
-        echo "gui_height=$gui_height"
-        echo "desktop_icon=$desktop_icon"
-        echo "update_check=$update_check"
-        echo "mxl_update_check=$mxl_update_check"
-    } >> "$script_config_file"
-    send_notify "$script_config_file created"
-fi
-
-# Import config file
-. "$script_config_file"
-
 zenity() {
 	/usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_dialog_height" "$@" 2>/dev/null
 }
 
 show_zenity_info() {
     log "$1"
-	zenity --info --text "$1"
+	zenity --info --text="$1"
 	return "$?"
 }
 
 show_zenity_error() {
     log "$1"
-	zenity --error --text "$1"
+	zenity --error --text="$1"
 	return "$?"
 }
 
 show_zenity_question() {
-    zenity --question --text "$1"
+    zenity --question --text="$1"
     return "$?"
+}
+
+restart_script() {
+    "$script_file" &
+    exit 0;
+}
+
+replace_config_file_value() {
+    key=$1
+    value=$2
+    sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
+    send_notify "$key was set to $value"
+    return 0
+}
+
+create_desktop_file() {
+    if [ ! -f "$desktop_file" ]; then
+	    {
+	        echo "[Desktop Entry]"
+	        echo "Name=$desktop_file_name"
+	        echo "Icon=$script_icon_file"
+	        echo "Exec=\"$script_file\""
+	        echo "Type=Application"
+	    } >> "$desktop_file"
+	    chmod +x "$desktop_file"
+	    send_notify "$desktop_file created"
+	    return 1
+	fi
+	return 0
+}
+
+remove_desktop_file() {
+    if [ -f "$desktop_file" ]; then
+	    rm -f "$desktop_file"
+	    send_notify "$desktop_file removed"
+	    return 1
+	fi
+	return 0
 }
 
 check_for_update() {
@@ -166,6 +204,61 @@ check_for_update() {
         return 0
     fi
     return 1
+}
+
+show_update_gui() {
+
+    tmp_file="/tmp/$script_id.version"
+    rm -f "$tmp_file"
+    ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
+    latest_version=$(< "$tmp_file")
+    if [ "$latest_version" = "" ]; then
+        send_notify "GitHub connection error"
+        return 1
+    fi
+
+    version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
+    if [ "$version" != "$latest_version" ]; then
+        version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
+    fi
+    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
+    show_zenity_question "$update_info"
+    if [ $? = 1 ]; then
+        log "User canceled"
+        return 1
+    fi
+    (
+        tmp_dir=/tmp/$script_id.tmp
+        rm -R -f "$tmp_dir"
+        mkdir -p "$tmp_dir"
+        latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
+        curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
+		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
+		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
+        chmod +x "$script_file"
+        
+        echo "# $script_id $latest_version successfully installed"
+        
+    ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
+    
+    restart_script
+}
+
+show_edit_config() {
+    result=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
+    if [ $? = 0 ]; then
+        echo "$result" > "$script_config_file"
+        send_notify "Configuration saved"
+        return 1
+    fi
+    return 0
+}
+
+show_help_gui() {
+    zenity --text-info --height="$gui_height" --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
+    return 0
 }
 
 check_for_mxl_update() {
@@ -200,8 +293,8 @@ check_d2_binary_dir() {
 	    directory=$(zenity --file-selection --directory)
 	    if [ "$directory" != "" ]; then
             replace_config_file_value "d2_binary_dir" "$directory"
+	        return 1
 	    fi
-	    return 1
     fi
     return 0
 }
@@ -349,11 +442,6 @@ show_mxl_patch_gui() {
     return 0
 }
 
-show_help_gui() {
-    zenity --text-info --height="$gui_height" --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
-    return 0
-}
-
 exec_diablo() {
 	if [ ! -f "$d2_binary_dir/$d2_exec" ]; then
 		show_zenity_error "$d2_binary_dir/$d2_exec not found"
@@ -430,57 +518,6 @@ exec_wine_config() {
     env WINEPREFIX="$wineprefix" "$wine_default" winecfg
 }
 
-show_edit_config() {
-    result=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
-    if [ $? = 0 ]; then
-        echo "$result" > "$script_config_file"
-        send_notify "$script_config_file saved"
-    fi
-    return 0
-}
-
-show_update_gui() {
-
-    tmp_file="/tmp/$script_id.version"
-    rm -f "$tmp_file"
-    ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
-    latest_version=$(< "$tmp_file")
-    if [ "$latest_version" = "" ]; then
-        send_notify "GitHub connection error"
-        return 1
-    fi
-
-    version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
-    if [ "$version" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
-    fi
-    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
-	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
-    show_zenity_question "$update_info"
-    if [ $? = 1 ]; then
-        log "User canceled"
-        return 1
-    fi
-    (
-        tmp_dir=/tmp/$script_id.tmp
-        rm -R -f "$tmp_dir"
-        mkdir -p "$tmp_dir"
-        latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
-        curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
-		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
-		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
-        chmod +x "$script_file"
-        
-        echo "# $script_id $latest_version successfully installed"
-        
-    ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
-    
-    # Restart script
-    "$script_file" &
-    exit 0
-}
-
 exec_export_data() {
     if [ ! -d "$mxl_savegames_dir" ]; then
 	    show_zenity_error "$mxl_savegames_dir not found"
@@ -506,48 +543,16 @@ exec_import_data() {
 	return 0
 }
 
-replace_config_file_value() {
-    key=$1
-    value=$2
-    sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
-    send_notify "$key was set to $value"
-    return 0
-}
-
-create_desktop_file() {
-    if [ ! -f "$desktop_file" ]; then
-	    {
-	        echo "[Desktop Entry]"
-	        echo "Name=$desktop_file_name"
-	        echo "Icon=$script_icon_file"
-	        echo "Exec=\"$script_file\""
-	        echo "Type=Application"
-	    } >> "$desktop_file"
-	    chmod +x "$desktop_file"
-	    send_notify "$desktop_file created"
-	    return 1
-	fi
-	return 0
-}
-
-remove_desktop_file() {
-    if [ -f "$desktop_file" ]; then
-	    rm -f "$desktop_file"
-	    send_notify "$desktop_file removed"
-	    return 1
-	fi
-	return 0
-}
-
 (check_for_update || send_notify "New $script_id update available") &
-(check_for_mxl_update || send_notify "New Median XL update available") &
+(check_for_mxl_update || send_notify "New $mxl_title update available") &
 
 # Main
 while(true); do
 
+    # Refresh config vars
     . "$script_config_file"
-    check_d2_binary_dir
-    . "$script_config_file"
+    
+    check_d2_binary_dir || restart_script
     
     # Set wine default
     wine_default="$wine4"
@@ -636,7 +641,7 @@ while(true); do
         exec_export_data || continue
     fi
    if [ "$result" = "$item_10" ]; then
-        show_edit_config || continue
+        show_edit_config || restart_script
     fi
     if [ "$result" = "$item_11" ]; then
         show_update_gui || continue
