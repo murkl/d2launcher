@@ -77,6 +77,10 @@ d2_stats_exe="D2Stats.exe"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 d2_sigma_loader_exe="sigma-loader.exe"
 
+log() {
+	echo "$(date "+%H:%M:%S") $script_id-$version: $1"
+}
+
 # Create new config file
 if [ ! -f "$script_config_file" ]; then
     {
@@ -90,15 +94,11 @@ if [ ! -f "$script_config_file" ]; then
         echo "update_check=$update_check"
         echo "mxl_update_check=$mxl_update_check"
     } >> "$script_config_file"
-    send_notify "$script_config_file created"
+    log "$script_config_file created"
 fi
 
 # Import config file
 . "$script_config_file"
-
-log() {
-	echo "$(date "+%H:%M:%S") $script_id-$version: $1"
-}
 
 send_notify() {
     log "$1"
@@ -153,6 +153,7 @@ show_zenity_question() {
 }
 
 restart_script() {
+    log "Restarting script..."
     "$script_file" &
     exit 0;
 }
@@ -161,7 +162,7 @@ replace_config_file_value() {
     key=$1
     value=$2
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
-    send_notify "$key was set to $value"
+    log "$key was set to $value"
     return 1
 }
 
@@ -175,7 +176,7 @@ create_desktop_file() {
 	        echo "Type=Application"
 	    } >> "$desktop_file"
 	    chmod +x "$desktop_file"
-	    send_notify "$desktop_file created"
+	    log "$desktop_file created"
 	    return 1
 	fi
 	return 0
@@ -184,7 +185,7 @@ create_desktop_file() {
 remove_desktop_file() {
     if [ -f "$desktop_file" ]; then
 	    rm -f "$desktop_file"
-	    send_notify "$desktop_file removed"
+	    log "$desktop_file removed"
 	    return 1
 	fi
 	return 0
