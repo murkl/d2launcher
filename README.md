@@ -11,7 +11,7 @@ Enjoy the simplicity :)
 * No wine installation required (wine AppImage will download by script)
 * Sandbox architecture
 * Less dependencies
-* Download latest Median XL patch (inkc. notification on new updates)
+* Download latest Median XL patch (incl. notification on new updates)
 * Median XL version management
 * Import/Export of savegames
 * D2 Stats included (will download by script)
