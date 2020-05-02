@@ -561,7 +561,7 @@ while(true); do
 	menu_d2launcher_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>D2LAUNCHER</b>\t'$version'</span>'
 	
     # Set Median XL version status
-    menu_mxl_info_text="$mxl_title not installed!"
+    menu_mxl_info_text="<b>MEDIAN XL</b>\tnot installed"
 	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
 		menu_mxl_info_text="<b>MEDIAN XL</b>\t$(cat "$d2_binary_dir/$mxl_version_file_name")"
 	fi
