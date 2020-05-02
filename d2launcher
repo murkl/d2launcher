@@ -91,6 +91,10 @@ if ! [ -x "$(command -v zenity)" ]; then
 	send_notify "zenity not installed"
 	exit 1;
 fi
+if ! [ -x "$(command -v curl)" ]; then
+	send_notify "curl not installed"
+	exit 1;
+fi
 if ! [ -x "$(command -v 7z)" ]; then
 	send_notify "p7zip not installed"
 	exit 1;

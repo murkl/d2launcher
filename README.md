@@ -39,12 +39,12 @@ You will need a Diablo II installation! The script will ask for your for the loc
 
 ### Arch
 ```
-sudo pacman -S zenity p7zip unrar jq wmctrl
+sudo pacman -S zenity curl p7zip unrar jq wmctrl
 ```
 
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install zenity p7zip unrar jq wmctrl
+sudo apt install zenity curl p7zip unrar jq wmctrl
 ```
 
 ## Run the script
