@@ -162,7 +162,7 @@ replace_config_file_value() {
     value=$2
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
     send_notify "$key was set to $value"
-    return 0
+    return 1
 }
 
 create_desktop_file() {
@@ -214,7 +214,7 @@ show_update_gui() {
     latest_version=$(< "$tmp_file")
     if [ "$latest_version" = "" ]; then
         send_notify "GitHub connection error"
-        return 1
+        return 0
     fi
 
     version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
@@ -226,7 +226,7 @@ show_update_gui() {
     show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"
-        return 1
+        return 0
     fi
     (
         tmp_dir=/tmp/$script_id.tmp
@@ -243,7 +243,7 @@ show_update_gui() {
         
     ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
     
-    restart_script
+    return 1
 }
 
 show_edit_config() {
@@ -644,8 +644,7 @@ while(true); do
         show_edit_config || restart_script
     fi
     if [ "$result" = "$item_11" ]; then
-        show_update_gui || continue
-        break; exit 0;
+        show_update_gui || restart_script
     fi
     if [ "$result" = "$item_12" ]; then
         show_help_gui || continue
