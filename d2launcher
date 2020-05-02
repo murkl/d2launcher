@@ -2,7 +2,7 @@
 
 # https://github.com/murkl/d2launcher
 
-version=3.0.8
+version=3.0.9
 
 github_author=murkl
 github_repo=d2launcher
@@ -294,8 +294,8 @@ check_d2_binary_dir() {
 	    directory=$(zenity --file-selection --directory)
 	    if [ "$directory" != "" ]; then
             replace_config_file_value "d2_binary_dir" "$directory"
-	        return 1
 	    fi
+        return 1
     fi
     return 0
 }
@@ -544,6 +544,8 @@ exec_import_data() {
 	return 0
 }
 
+check_d2_binary_dir || restart_script
+
 (check_for_update || send_notify "New $script_id update available") &
 (check_for_mxl_update || send_notify "New $mxl_title update available") &
 
@@ -552,8 +554,6 @@ while(true); do
 
     # Refresh config vars
     . "$script_config_file"
-    
-    check_d2_binary_dir || restart_script
     
     # Set wine default
     wine_default="$wine4"
