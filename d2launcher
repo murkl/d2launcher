@@ -134,7 +134,7 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
-ZENITY_SPAN_THEMING='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
+SPAN_THEMING='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
 
 zenity() {
 	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
@@ -143,28 +143,24 @@ zenity() {
 show_zenity_info() {
     text="$1" && shift
     log "$text"
-	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b></span>" "$@"
-	return $?
+	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b></span>" "$@"
 }
 
 show_zenity_error() {
     text="$1" && shift
     log "$text"
-	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b></span>" "$@"
-	return $?
+	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b></span>" "$@"
 }
 
 show_zenity_question() {
     text="$1" && shift
-    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n$text</span>" "$@"
-    return $?
+    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n$text</span>" "$@"
 }
 
 show_zenity_progress() {
     piped_pid="$1" && shift    
     text="$1" && shift
-    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b>\n</span>" "$@" || (kill -9 $(list_children_pid "$piped_pid"); log "Progress PID killed: $piped_pid"; return 1) )
-    return $?
+    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b>\n</span>" "$@" || (kill -9 $(list_children_pid "$piped_pid"); log "Progress PID killed: $piped_pid"; return 1) )
 }
 
 restart_script() {
@@ -304,15 +300,12 @@ show_help_gui() {
 }
 
 exec_wine() {
-    log "Executing: env WINEPREFIX=$wineprefix $wine_default $1 $2"
-    env WINEPREFIX="$wineprefix" "$wine_default" "$1" "$2"
-    return $?
+    log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
+    env WINEPREFIX="$wineprefix" "$wine_default" "$@"
 }
 
 exec_wine_exe() {
-    log "Executing: env WINEPREFIX=$wineprefix $wine_default start /unix $1 $2"
-    env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$1" "$2"
-    return $?
+    exec_wine start /unix "$@"
 }
 
 check_wine_default() {
@@ -403,11 +396,11 @@ check_glide_installation() {
     if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
         if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
             log "User canceled"
-            return 1;
+            return 1
         fi
     	if [ ! -f "$glide_res_file" ]; then
 		    zenity_error "$glide_res_file not found!"
-	        exit 1;
+	        return 1
 	    fi
         (unzip -o "$glide_res_file" -d "$d2_binary_dir") &
         if ! show_zenity_progress $! "Installing Glide Wrapper"; then
@@ -470,16 +463,16 @@ show_mxl_patch_gui() {
 	fi
 	if [ ! -f "$d2_patch_res_file" ]; then
 		show_zenity_error "$d2_patch_res_file not found!"
-		exit 1;
+		return 1
 	fi
 	if [ ! -f "$glide_res_file" ]; then
 		zenity_error "$glide_res_file not found!"
-		exit 1;
+		return 1
 	fi
 
     # List path files
     cd "$patch_files_dir" || exit 1;
-    info_text="<span $ZENITY_SPAN_THEMING><b>Choose $mxl_title patch to install</b></span>"
+    info_text="<span $SPAN_THEMING><b>Choose $mxl_title patch to install</b></span>"
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
@@ -564,10 +557,14 @@ exec_diablo() {
     else
 	    exec_wine_exe "$d2_binary_dir/$d2_exe" "$d2_args"
     fi
-    return $?
+    return 0
 }
 
 exec_glide_settings() {
+	if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
+		show_zenity_error "$d2_binary_dir/$d2_glide_exe not found"
+		return 1
+	fi
     exec_wine_exe "$d2_binary_dir/$d2_glide_exe"
     return 0
 }
@@ -575,7 +572,7 @@ exec_glide_settings() {
 exec_d2_video_settings() {
 	if [ ! -f "$d2_binary_dir/$d2_vid_test_exe" ]; then
 		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
-		exit 1;
+		return 1
 	fi
     exec_wine_exe "$d2_binary_dir/$d2_vid_test_exe"
 	return 0
@@ -638,7 +635,7 @@ while(true); do
 		mxl_version_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
 	fi
 	
-	info_text="<span $ZENITY_SPAN_THEMING><b>D2LAUNCHER</b>\t$version\n<b>MEDIAN XL</b>\t$mxl_version_info_text</span>"
+	info_text="<span $SPAN_THEMING><b>D2LAUNCHER</b>\t$version\n<b>MEDIAN XL</b>\t$mxl_version_info_text</span>"
 	 
     # Menu items
 	item_01="Diablo II"
