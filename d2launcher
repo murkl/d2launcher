@@ -26,7 +26,7 @@ script_help_file="$script_res_dir/$script_id-help.html"
 gui_title="Diablo II • Median XL • Standalone"
 gui_width=465
 gui_height=365
-gui_dialog_width=250
+gui_dialog_width=300
 gui_dialog_height=150
 gui_info_font="monospace"
 gui_info_color="#87270A"
@@ -133,31 +133,42 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
+zenity() {
+	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
+}
+
+show_zenity_info() {
+    text="$1" && shift
+    log "$text"
+	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+	return $?
+}
+
+show_zenity_error() {
+    text="$1" && shift
+    log "$text"
+	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+	return $?
+}
+
+show_zenity_question() {
+    text="$1" && shift
+    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+    return $?
+}
+
+show_zenity_progress() {
+    piped_pid="$1" && shift    
+    text="$1" && shift
+    log "Process id = $piped_pid"
+    tail -f /dev/null --pid $piped_pid | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@" || (kill $(list_children_pid $piped_pid) | return 1 ) )
+    return $?
+}
+
 restart_script() {
     log "Restarting script..."
     "$script_file" &
     exit 0;
-}
-
-zenity() {
-	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_dialog_height" "$@" 2> /dev/null
-}
-
-show_zenity_info() {
-    log "$1"
-	zenity --info --text="$1"
-	return "$?"
-}
-
-show_zenity_error() {
-    log "$1"
-	zenity --error --text="$1"
-	return "$?"
-}
-
-show_zenity_question() {
-    zenity --question --text="$1"
-    return "$?"
 }
 
 list_children_pid () {
@@ -167,14 +178,6 @@ list_children_pid () {
         list_children_pid "$pid"
     done
     echo "$children_pid"
-}
-
-show_zenity_progress() {
-    piped_pid="$1" && shift    
-    text="$1" && shift
-    log "Process id = $piped_pid"
-    tail -f /dev/null --pid $piped_pid | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@" || (kill $(list_children_pid $piped_pid) | return 1 ) )
-    return $?
 }
 
 replace_config_file_value() {
@@ -247,11 +250,11 @@ show_update_gui() {
 	update_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
     
     show_zenity_question "$update_info"
+
     if [ $? = 1 ]; then
         log "User canceled"
         return 0
     fi
-    
     (
         tmp_dir=/tmp/$script_id.tmp
         rm -R -f "$tmp_dir"
@@ -276,7 +279,7 @@ show_update_gui() {
 }
 
 show_edit_config() {
-    result=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
+    result=$(zenity --text-info --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
@@ -286,7 +289,7 @@ show_edit_config() {
 }
 
 show_help_gui() {
-    zenity --text-info --height="$gui_height" --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
+    zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
     return 0
 }
 
@@ -330,33 +333,40 @@ check_d2_binary_dir() {
 
 check_wine_standalone() {
     if [ ! -f "$wine_default" ]; then
+    
         wine_version="4"
         if [ "$wine5_enabled" = "true" ]; then
             wine_version="5"
         fi
+        
         show_zenity_question "Wine $wine_version AppImage is required. Download now?"
         if [ $? = 1 ]; then
             log "User canceled"
             return 1
         fi
+        
         (
-            install_wine
-            echo "# Wine $wine_version AppImage successfully downloaded"
-        ) | zenity --progress --text="Downloading Wine $wine_version AppImage" --auto-kill --pulsate
+            tmp_file="/tmp/wine.tmp"
+            wine_url="$wine4_url"
+            if [ "$wine5_enabled" = "true" ]; then
+                wine_url="$wine5_url"
+            fi
+            curl -Lk "$wine_url" -o "$tmp_file"
+            mv "$tmp_file" "$wine_default"
+            chmod +x "$wine_default"  
+        ) & piped_pid=$!
+        
+        show_zenity_progress "Downloading Wine $wine_version AppImage"
+        
+        if [ $? = 1 ]; then
+            show_zenity_error "Error during downloading Wine $wine_version"
+            return 1
+        fi
+        
+        show_zenity_info "Wine $wine_version successfully downloaded"
+        
         return 1
     fi
-    return 0
-}
-
-install_wine() {
-    tmp_file="/tmp/wine.tmp"
-    wine_url="$wine4_url"
-    if [ "$wine5_enabled" = "true" ]; then
-        wine_url="$wine5_url"
-    fi
-    curl -Lk "$wine_url" -o "$tmp_file"
-    mv "$tmp_file" "$wine_default"
-    chmod +x "$wine_default"    
     return 0
 }
 
@@ -367,10 +377,9 @@ check_glide_installation() {
             log "User canceled"
             return 1;
         fi
-        (
-	        install_glide
-            echo "# Glide wrapper successfully installed"
-        ) | zenity --progress --text="Installing Glide Wrapper" --auto-kill --pulsate
+        install_glide & piped_pid=$!
+        show_zenity_progress "Installing Glide Wrapper"
+        show_zenity_info "Glide wrapper successfully installed"
         return 1
     fi
     return 0
@@ -379,7 +388,7 @@ check_glide_installation() {
 install_glide() {
 	if [ ! -f "$glide_res_file" ]; then
 		zenity_error "$glide_res_file not found!"
-		exit 1
+		exit 1;
 	fi
     unzip -o "$glide_res_file" -d "$d2_binary_dir"
     return 0
@@ -387,14 +396,14 @@ install_glide() {
 
 show_mxl_download_gui() {
     if check_for_mxl_update; then
-        show_zenity_info "No $mxl_title update available."
+        show_zenity_info "No $mxl_title update available"
         return 0
     else
         # Create tmp download dir
         tmp_dir="/tmp/$latest_mxl_patch_prefix"
         rm -f -r "$tmp_dir"
         mkdir -p "$tmp_dir"
-        cd "$tmp_dir" || exit 1
+        cd "$tmp_dir" || exit 1;
 
         ( # Download latest Median XL patch
             echo "# Downloading $mxl_title $latest_mxl_patch_version dlls ..."
@@ -417,7 +426,9 @@ show_mxl_download_gui() {
 
             echo "# $mxl_title $latest_mxl_patch_version patch successfully downloaded"
 
-        ) | zenity --progress --text="Downloading $mxl_title $latest_mxl_patch_version" --auto-kill --pulsate
+        ) & piped_pid=$!  
+    
+    show_zenity_progress $piped_pid "Downloading $mxl_title $latest_mxl_patch_version"
 
         if [ "$?" = -1 ] ; then
 	        show_zenity_error "Download error"
@@ -436,34 +447,34 @@ show_mxl_patch_gui() {
 	fi
 	if [ ! -f "$d2_patch_res_file" ]; then
 		show_zenity_error "$d2_patch_res_file not found!"
-		exit 1
+		exit 1;
 	fi
 	if [ ! -f "$glide_res_file" ]; then
 		zenity_error "$glide_res_file not found!"
-		exit 1
+		exit 1;
 	fi
 
     # List path files
-    cd "$patch_files_dir" || exit 1
+    cd "$patch_files_dir" || exit 1;
     info_text='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>Choose '$mxl_title' patch to install</b></span>'
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --height="$gui_height" --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
+    patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
-            patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
             install_glide
             unzip -o "$d2_patch_res_file" -d "$d2_binary_dir"
             unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_binary_dir"
             echo "$patch_version" > "$d2_binary_dir/$mxl_version_file_name"
-            echo "# $mxl_title successfully patched"
         ) & piped_pid=$!
         
-        show_zenity_progress $piped_pid "Patching $mxl_title"
+        show_zenity_progress $piped_pid "Patching $mxl_title $patch_version"
         
-        if [ "$?" = 1 ] ; then
-            show_zenity_error "Patching error"
+        if [ $? = 1 ] ; then
+            show_zenity_error "Error during patching $mxl_title $patch_version"
             return 1
         fi
+        show_zenity_info "$mxl_title $patch_version successfully patched"
     fi
     return 0
 }
@@ -471,11 +482,13 @@ show_mxl_patch_gui() {
 exec_wine() {
     log "Executing: env WINEPREFIX=$wineprefix $wine_default $1 $2"
     env WINEPREFIX="$wineprefix" "$wine_default" "$1" "$2"
+    return $?
 }
 
 exec_wine_exe() {
     log "Executing: env WINEPREFIX=$wineprefix $wine_default start /unix $1 $2"
     env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$1" "$2"
+    return $?
 }
 
 exec_diablo() {
@@ -489,7 +502,7 @@ exec_diablo() {
     else
 	    exec_wine_exe "$d2_binary_dir/$d2_exe" "$d2_args"
     fi
-    return 0
+    return $?
 }
 
 exec_d2_stats() {
@@ -500,13 +513,15 @@ exec_d2_stats() {
         fi
         (
             mkdir -p "$d2_stats_res_dir"
-            cd "$d2_stats_res_dir" || exit 1
+            cd "$d2_stats_res_dir" || exit 1;
             rar_file=d2-stats.rar
             curl -Lk "$d2_stats_url" -o "$rar_file"
             unrar x "$rar_file"
             rm "$rar_file"
             echo "# D2Stats successfully downloaded"
-        ) | zenity --progress --text="Downloading D2Stats" --auto-kill --pulsate
+        ) & piped_pid=$!  
+    
+    show_zenity_progress $piped_pid "Downloading D2Stats"
     fi
     
     if [ ! -f "$d2_binary_dir/$d2_sigma_loader_exe" ]; then
@@ -517,7 +532,9 @@ exec_d2_stats() {
         (
             curl -Lk "$d2_sigma_loader_url" -o "$d2_binary_dir/$d2_sigma_loader_exe"
             echo "# $d2_sigma_loader_exe successfully downloaded"
-        ) | zenity --progress --text="Downloading $d2_sigma_loader_exe" --auto-kill --pulsate
+        ) & piped_pid=$!  
+    
+    show_zenity_progress $piped_pid "Downloading $d2_sigma_loader_exe"
     fi
 
 	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
@@ -538,7 +555,7 @@ exec_d2_stats() {
 exec_d2_video_settings() {
 	if [ ! -f "$d2_binary_dir/$d2_vid_test_exe" ]; then
 		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
-		exit 1
+		exit 1;
 	fi
     exec_wine_exe "$d2_binary_dir/$d2_vid_test_exe"
 	return 0
@@ -562,7 +579,7 @@ exec_export_data() {
 	directory=$(zenity --file-selection --directory)
 	if [ "$directory" != "" ]; then
 		filename="$mxl_savegames_prefix-$(date "+%Y-%m-%d-%H%M").zip"
-		cd "$mxl_savegames_dir" || exit 1
+		cd "$mxl_savegames_dir" || exit 1;
 		zip -r -0 "$directory/$filename" .
 		show_zenity_info "Data successfully exported: $directory/$filename"
 	fi
@@ -602,23 +619,17 @@ while(true); do
 		remove_desktop_file
 	fi
 	
-	menu_d2launcher_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>D2LAUNCHER</b>\t'$version'</span>'
-	
     # Set Median XL version status
-    menu_mxl_info_text="<b>MEDIAN XL</b>\tnot installed"
+    menu_mxl_info_text="not installed"
 	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		menu_mxl_info_text="<b>MEDIAN XL</b>\t$(cat "$d2_binary_dir/$mxl_version_file_name")"
+		menu_mxl_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
 	fi
-	menu_mxl_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'">'$menu_mxl_info_text'</span>'
+	
+	menu_d2launcher_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>D2LAUNCHER</b>\t'$version'</span>'
+	menu_mxl_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>MEDIAN XL</b>\t'$menu_mxl_info_text'</span>'
 	
 	info_text="$menu_d2launcher_info\n$menu_mxl_info\n"
-	
-    # Set default wine version info
-	wine_version_info=4
-	if [ "$wine5_enabled" = "true" ]; then
-	    wine_version_info=5
-	fi
-    
+	 
     # Menu items
 	item_01="Diablo II"
 	item_02="D2 Stats"
@@ -626,7 +637,7 @@ while(true); do
 	item_04="Install $mxl_title"
 	item_05="Glide Settings"
 	item_06="D2 Video Settings"
-	item_07="Wine $wine_version_info Settings"
+	item_07="Wine Settings"
 	item_08="Import Savegames"
 	item_09="Export Savegames"
 	item_10="Configuration"
@@ -634,17 +645,17 @@ while(true); do
 	item_12="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --height="$gui_height" --ok-label="Ok" --cancel-label="Exit" --text="$info_text" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
+    result=$(zenity --list --radiolist --ok-label="Ok" --cancel-label="Exit" --text="$info_text" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
 
     # If user exit
     if [ $? = 1 ]; then
-        break; exit 0;
+        exit 0;
     fi
     if [ "$result" = "$item_01" ]; then
         check_wine_standalone || continue
         check_glide_installation || continue
-        exec_diablo || continue
-        break; exit 0;
+        exec_diablo
+        exit 0;
     fi
     if [ "$result" = "$item_02" ]; then
         check_wine_standalone || continue
