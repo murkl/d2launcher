@@ -141,20 +141,20 @@ zenity() {
 show_zenity_info() {
     text="$1" && shift
     log "$text"
-	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
+	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b></span>" "$@"
 	return $?
 }
 
 show_zenity_error() {
     text="$1" && shift
     log "$text"
-	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
+	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b></span>" "$@"
 	return $?
 }
 
 show_zenity_question() {
     text="$1" && shift
-    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
+    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n$text</span>" "$@"
     return $?
 }
 
@@ -162,7 +162,7 @@ show_zenity_progress() {
     piped_pid="$1" && shift    
     text="$1" && shift
     log "Process id = $piped_pid"
-    tail -f /dev/null --pid $piped_pid | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme><b>$text</b></span>" "$@" || (kill $(list_children_pid $piped_pid) | return 1 ) )
+    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b>\n</span>" "$@" || (kill $(list_children_pid "$piped_pid") | return 1 ) )
     return $?
 }
 
@@ -248,7 +248,7 @@ show_update_gui() {
         version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
     fi    
     version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
-	update_info='<span '$gui_info_theme'><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
+	update_info="<b>$script_id Updater</b>\n\n$version_text"
     
     show_zenity_question "$update_info"
 
@@ -263,7 +263,7 @@ show_update_gui() {
         latest_zip=$(curl --silent "$github_tags_url" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
 		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
     ) & piped_pid=$!  
@@ -407,25 +407,25 @@ show_mxl_download_gui() {
         cd "$tmp_dir" || exit 1;
 
         ( # Download latest Median XL patch
-            echo "# Downloading $mxl_title $latest_mxl_patch_version dlls ..."
+            log " Downloading $mxl_title $latest_mxl_patch_version dlls ..."
             curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
 
-            echo "# Downloading $mxl_title $latest_mxl_patch_version mod ..."
+            log " Downloading $mxl_title $latest_mxl_patch_version mod ..."
             curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"
 
-            echo "# Extracting $mxl_title dll files ..."
+            log " Extracting $mxl_title dll files ..."
             7z e "$tmp_dir/dlls.7z" -aoa
             rm -f "$tmp_dir/dlls.7z"
 
-            echo "# Extracting $mxl_title mod files ..."
+            log " Extracting $mxl_title mod files ..."
             7z e "$tmp_dir/mod.7z" -aoa
             rm -f "$tmp_dir/mod.7z"
 
-            echo "# Creating $latest_mxl_patch_prefix patch ..."
+            log " Creating $latest_mxl_patch_prefix patch ..."
             mkdir -p "$patch_files_dir"
             zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
 
-            echo "# $mxl_title $latest_mxl_patch_version patch successfully downloaded"
+            log " $mxl_title $latest_mxl_patch_version patch successfully downloaded"
 
         ) & piped_pid=$!  
     
@@ -457,7 +457,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1;
-    info_text='<span '$gui_info_theme'><b>Choose '$mxl_title' patch to install</b></span>'
+    info_text="<span $gui_info_theme><b>Choose $mxl_title patch to install</b></span>"
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
@@ -519,7 +519,7 @@ exec_d2_stats() {
             curl -Lk "$d2_stats_url" -o "$rar_file"
             unrar x "$rar_file"
             rm "$rar_file"
-            echo "# D2Stats successfully downloaded"
+            log " D2Stats successfully downloaded"
         ) & piped_pid=$!  
     
     show_zenity_progress $piped_pid "Downloading D2Stats"
@@ -532,7 +532,7 @@ exec_d2_stats() {
         fi
         (
             curl -Lk "$d2_sigma_loader_url" -o "$d2_binary_dir/$d2_sigma_loader_exe"
-            echo "# $d2_sigma_loader_exe successfully downloaded"
+            log " $d2_sigma_loader_exe successfully downloaded"
         ) & piped_pid=$!  
     
     show_zenity_progress $piped_pid "Downloading $d2_sigma_loader_exe"
@@ -621,15 +621,12 @@ while(true); do
 	fi
 	
     # Set Median XL version status
-    menu_mxl_info_text="not installed"
+    mxl_version_info_text="not installed"
 	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		menu_mxl_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
+		mxl_version_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
 	fi
 	
-	menu_d2launcher_info='<span '$gui_info_theme'><b>D2LAUNCHER</b>\t'$version'</span>'
-	menu_mxl_info='<span '$gui_info_theme'><b>MEDIAN XL</b>\t'$menu_mxl_info_text'</span>'
-	
-	info_text="$menu_d2launcher_info\n$menu_mxl_info\n"
+	info_text="<span $gui_info_theme><b>D2LAUNCHER</b>\t\t$version\n<b>MEDIAN XL</b>\t\t$mxl_version_info_text</span>"
 	 
     # Menu items
 	item_01="Diablo II"
@@ -646,7 +643,7 @@ while(true); do
 	item_12="Help"
 
     # Show menu
-    result=$(zenity --list --radiolist --ok-label="Ok" --cancel-label="Exit" --text="$info_text" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
+    result=$(zenity --list --radiolist --ok-label="Ok" --cancel-label="Exit" --text="$info_text\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07" FALSE "$item_08" FALSE "$item_09" FALSE "$item_10" FALSE "$item_11" FALSE "$item_12")
 
     # If user exit
     if [ $? = 1 ]; then
