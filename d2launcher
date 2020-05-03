@@ -303,47 +303,19 @@ show_help_gui() {
     return 0
 }
 
-check_for_mxl_update() {
-
-    if [ "$mxl_update_check" = "false" ]; then
-        return 1
-    fi    
-    
-    # Parse mxl patch infos
-    latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
-    curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
-
-	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
-	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
-
-	if [ "$latest_mxl_patch_version" = "" ]; then
-		log "No connection to $mxl_title server"
-		return 1
-	fi
-
-    # Check if new mxl version available
-    if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
-        log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
-        return 1
-    fi
-    
-    return 0
+exec_wine() {
+    log "Executing: env WINEPREFIX=$wineprefix $wine_default $1 $2"
+    env WINEPREFIX="$wineprefix" "$wine_default" "$1" "$2"
+    return $?
 }
 
-check_d2_binary_dir() {
-    if [ ! -d "$d2_binary_dir" ]; then
-	    show_zenity_info "Please choose Diablo II binary dir..."
-	    directory=$(zenity --file-selection --directory)
-	    if [ "$directory" = "" ]; then
-	        log "Error: directory is empty"
-	        return 1
-	    fi
-        replace_config_file_value "d2_binary_dir" "$directory"
-    fi
-    return 0
+exec_wine_exe() {
+    log "Executing: env WINEPREFIX=$wineprefix $wine_default start /unix $1 $2"
+    env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$1" "$2"
+    return $?
 }
 
-check_wine_standalone() {
+check_wine_default() {
     if [ ! -f "$wine_default" ]; then
     
         wine_version="4"
@@ -383,6 +355,46 @@ check_wine_standalone() {
         fi
         
         show_zenity_info "Wine $wine_version successfully downloaded"
+    fi
+    return 0
+}
+
+check_for_mxl_update() {
+
+    if [ "$mxl_update_check" = "false" ]; then
+        return 1
+    fi    
+    
+    # Parse mxl patch infos
+    latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
+    curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
+
+	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
+	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
+
+	if [ "$latest_mxl_patch_version" = "" ]; then
+		log "No connection to $mxl_title server"
+		return 1
+	fi
+
+    # Check if new mxl version available
+    if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
+        log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
+        return 1
+    fi
+    
+    return 0
+}
+
+check_d2_binary_dir() {
+    if [ ! -d "$d2_binary_dir" ]; then
+	    show_zenity_info "Please choose Diablo II binary dir..."
+	    directory=$(zenity --file-selection --directory)
+	    if [ "$directory" = "" ]; then
+	        log "Error: directory is empty"
+	        return 1
+	    fi
+        replace_config_file_value "d2_binary_dir" "$directory"
     fi
     return 0
 }
@@ -490,32 +502,6 @@ show_mxl_patch_gui() {
     return 0
 }
 
-exec_wine() {
-    log "Executing: env WINEPREFIX=$wineprefix $wine_default $1 $2"
-    env WINEPREFIX="$wineprefix" "$wine_default" "$1" "$2"
-    return $?
-}
-
-exec_wine_exe() {
-    log "Executing: env WINEPREFIX=$wineprefix $wine_default start /unix $1 $2"
-    env WINEPREFIX="$wineprefix" "$wine_default" start /unix "$1" "$2"
-    return $?
-}
-
-exec_diablo() {
-	if [ ! -f "$d2_binary_dir/$d2_exe" ]; then
-		show_zenity_error "$d2_binary_dir/$d2_exe not found"
-		return 1
-	fi
-
-    if pgrep -x "$d2_stats_exe" >/dev/null; then
-	    exec_wine_exe "$d2_binary_dir/$d2_sigma_loader_exe" "$d2_args"
-    else
-	    exec_wine_exe "$d2_binary_dir/$d2_exe" "$d2_args"
-    fi
-    return $?
-}
-
 exec_d2_stats() {
     if [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
         if ! show_zenity_question "D2Stats is required. Download now?"; then
@@ -567,6 +553,25 @@ exec_d2_stats() {
 	return 0
 }
 
+exec_diablo() {
+	if [ ! -f "$d2_binary_dir/$d2_exe" ]; then
+		show_zenity_error "$d2_binary_dir/$d2_exe not found"
+		return 1
+	fi
+
+    if pgrep -x "$d2_stats_exe" >/dev/null; then
+	    exec_wine_exe "$d2_binary_dir/$d2_sigma_loader_exe" "$d2_args"
+    else
+	    exec_wine_exe "$d2_binary_dir/$d2_exe" "$d2_args"
+    fi
+    return $?
+}
+
+exec_glide_settings() {
+    exec_wine_exe "$d2_binary_dir/$d2_glide_exe"
+    return 0
+}
+
 exec_d2_video_settings() {
 	if [ ! -f "$d2_binary_dir/$d2_vid_test_exe" ]; then
 		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
@@ -574,16 +579,6 @@ exec_d2_video_settings() {
 	fi
     exec_wine_exe "$d2_binary_dir/$d2_vid_test_exe"
 	return 0
-}
-
-exec_glide_settings() {
-    check_glide_installation
-    exec_wine_exe "$d2_binary_dir/$d2_glide_exe"
-    return 0
-}
-
-exec_wine_config() {
-    exec_wine winecfg
 }
 
 exec_export_data() {
@@ -667,13 +662,13 @@ while(true); do
         break; exit 0;
     fi
     if [ "$result" = "$item_01" ]; then
-        check_wine_standalone || continue
+        check_wine_default || continue
         check_glide_installation || continue
         exec_diablo
         break; exit 0;
     fi
     if [ "$result" = "$item_02" ]; then
-        check_wine_standalone || continue
+        check_wine_default || continue
         exec_d2_stats
     fi
     if [ "$result" = "$item_03" ]; then
@@ -683,17 +678,17 @@ while(true); do
         show_mxl_patch_gui
     fi
     if [ "$result" = "$item_05" ]; then
-        check_wine_standalone || continue
+        check_wine_default || continue
         check_glide_installation || continue
         exec_glide_settings
     fi
     if [ "$result" = "$item_06" ]; then
-        check_wine_standalone || continue
+        check_wine_default || continue
         exec_d2_video_settings
     fi
     if [ "$result" = "$item_07" ]; then
-        check_wine_standalone || continue
-        exec_wine_config
+        check_wine_default || continue
+        exec_wine winecfg
     fi
     if [ "$result" = "$item_08" ]; then
         exec_import_data 
