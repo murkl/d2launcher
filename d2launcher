@@ -38,8 +38,9 @@ desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_icon=true
 
 # Wine AppImage
+
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
-wine5_url="https://github.com/ferion11/Wine_Appimage_dev/releases/download/continuous/wine-staging-linux-x86-v5.5-PlayOnLinux-x86_64.AppImage"
+wine5_url="https://github.com/ferion11/Wine_Appimage_dev/releases/download/continuous/wine-staging-linux-x86-v5.7-PlayOnLinux-x86_64.AppImage"
 wine4="$script_res_dir/wine4.AppImage"
 wine5="$script_res_dir/wine5.AppImage"
 wineprefix="$script_dir/.wineprefix"
@@ -358,7 +359,7 @@ check_wine_standalone() {
             chmod +x "$wine_default"  
         ) & piped_pid=$!
         
-        show_zenity_progress "Downloading Wine $wine_version AppImage"
+        show_zenity_progress $piped_pid "Downloading Wine $wine_version AppImage"
         
         if [ $? = 1 ]; then
             show_zenity_error "Error during downloading Wine $wine_version"
@@ -380,7 +381,7 @@ check_glide_installation() {
             return 1;
         fi
         install_glide & piped_pid=$!
-        show_zenity_progress "Installing Glide Wrapper"
+        show_zenity_progress $piped_pid "Installing Glide Wrapper"
         show_zenity_info "Glide wrapper successfully installed"
         return 1
     fi
