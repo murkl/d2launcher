@@ -281,6 +281,7 @@ show_update_gui() {
     fi
     
     show_zenity_info "Update $script_id-$latest_version successfully installed"
+    restart_script
     
     return 0
 }
@@ -290,6 +291,7 @@ show_edit_config() {
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
+        restart_script
     fi
     return 0
 }
@@ -383,11 +385,16 @@ check_d2_binary_dir() {
     if [ ! -d "$d2_binary_dir" ]; then
 	    show_zenity_info "Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
+        if [ $? = 1 ]; then
+            log "User exit"
+            exit 0;
+        fi
 	    if [ "$directory" = "" ]; then
 	        log "Error: directory is empty"
 	        return 1
 	    fi
         replace_config_file_value "d2_binary_dir" "$directory"
+        restart_script
     fi
     return 0
 }
@@ -661,7 +668,7 @@ while(true); do
     if [ "$result" = "$item_01" ]; then
         check_wine_default || continue
         check_glide_installation || continue
-        exec_diablo
+        exec_diablo || continue
         break; exit 0;
     fi
     if [ "$result" = "$item_02" ]; then
@@ -694,10 +701,10 @@ while(true); do
         exec_export_data
     fi
    if [ "$result" = "$item_10" ]; then
-        show_edit_config && restart_script
+        show_edit_config
     fi
     if [ "$result" = "$item_11" ]; then
-        show_update_gui && restart_script
+        show_update_gui
     fi
     if [ "$result" = "$item_12" ]; then
         show_help_gui
