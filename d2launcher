@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
 
-version=3.1.0
+version=3.1.1
 
 # Update
 github_author=murkl
@@ -40,7 +40,7 @@ desktop_icon=true
 # Wine AppImage
 
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
-wine5_url="https://github.com/ferion11/Wine_Appimage_dev/releases/download/continuous/wine-staging-linux-x86-v5.7-PlayOnLinux-x86_64.AppImage"
+wine5_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
 wine4="$script_res_dir/wine4.AppImage"
 wine5="$script_res_dir/wine5.AppImage"
 wineprefix="$script_dir/.wineprefix"
