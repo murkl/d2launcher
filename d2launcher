@@ -31,7 +31,6 @@ gui_dialog_height=150
 gui_info_font="monospace"
 gui_info_color="#87270A"
 gui_info_size="8"
-gui_info_theme='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
 
 # Desktop file
 desktop_file_name="Diablo II"
@@ -134,6 +133,8 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
+ZENITY_SPAN_THEMING='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
+
 zenity() {
 	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
 }
@@ -141,20 +142,20 @@ zenity() {
 show_zenity_info() {
     text="$1" && shift
     log "$text"
-	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b></span>" "$@"
+	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b></span>" "$@"
 	return $?
 }
 
 show_zenity_error() {
     text="$1" && shift
     log "$text"
-	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b></span>" "$@"
+	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b></span>" "$@"
 	return $?
 }
 
 show_zenity_question() {
     text="$1" && shift
-    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n$text</span>" "$@"
+    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n$text</span>" "$@"
     return $?
 }
 
@@ -162,7 +163,7 @@ show_zenity_progress() {
     piped_pid="$1" && shift    
     text="$1" && shift
     log "Process id = $piped_pid"
-    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme>\n<b>$text</b>\n</span>" "$@" || (kill $(list_children_pid "$piped_pid") | return 1 ) )
+    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $ZENITY_SPAN_THEMING>\n<b>$text</b>\n</span>" "$@" || (kill $(list_children_pid "$piped_pid") | return 1 ) )
     return $?
 }
 
@@ -457,7 +458,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1;
-    info_text="<span $gui_info_theme><b>Choose $mxl_title patch to install</b></span>"
+    info_text="<span $ZENITY_SPAN_THEMING><b>Choose $mxl_title patch to install</b></span>"
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
@@ -626,7 +627,7 @@ while(true); do
 		mxl_version_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
 	fi
 	
-	info_text="<span $gui_info_theme><b>D2LAUNCHER</b>\t\t$version\n<b>MEDIAN XL</b>\t\t$mxl_version_info_text</span>"
+	info_text="<span $ZENITY_SPAN_THEMING><b>D2LAUNCHER</b>\t\t$version\n<b>MEDIAN XL</b>\t\t$mxl_version_info_text</span>"
 	 
     # Menu items
 	item_01="Diablo II"
