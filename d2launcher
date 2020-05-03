@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
 
-version=3.1.2
+version=3.1.3
 
 # Update
 github_author=murkl
@@ -187,7 +187,7 @@ replace_config_file_value() {
     value=$2
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
     log "$key was set to $value"
-    return 1
+    return 0
 }
 
 create_desktop_file() {
@@ -201,7 +201,6 @@ create_desktop_file() {
 	    } >> "$desktop_file"
 	    chmod +x "$desktop_file"
 	    log "$desktop_file created"
-	    return 1
 	fi
 	return 0
 }
@@ -210,25 +209,24 @@ remove_desktop_file() {
     if [ -f "$desktop_file" ]; then
 	    rm -f "$desktop_file"
 	    log "$desktop_file removed"
-	    return 1
 	fi
 	return 0
 }
 
 check_for_update() {
     if [ "$update_check" = "false" ]; then
-        return 0
+        return 1
     fi
     latest_version=$(curl --silent "$github_tags_url" | jq -r '.[0].name')
     if [ "$latest_version" = "" ]; then
         log "GitHub connection error"
-        return 0
+        return 1
     fi
     if [ "$version" = "$latest_version" ]; then
         log "No update available. (latest $script_id version: $latest_version)"
-        return 0
+        return 1
     fi
-    return 1
+    return 0
 }
 
 show_update_gui() {
@@ -255,9 +253,7 @@ show_update_gui() {
     version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
 	update_info="<b>$script_id Updater</b>\n\n$version_text"
     
-    show_zenity_question "$update_info"
-
-    if [ $? = 1 ]; then
+    if ! show_zenity_question "$update_info"; then
         log "User canceled"
         return 1
     fi
@@ -290,8 +286,6 @@ show_update_gui() {
     
     show_zenity_info "Update $script_id-$latest_version successfully installed"
     
-    restart_script
-    
     return 0
 }
 
@@ -300,7 +294,6 @@ show_edit_config() {
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
-        restart_script
     fi
     return 0
 }
@@ -313,8 +306,9 @@ show_help_gui() {
 check_for_mxl_update() {
 
     if [ "$mxl_update_check" = "false" ]; then
-        return 0
+        return 1
     fi    
+    
     # Parse mxl patch infos
     latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
     curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
@@ -324,26 +318,27 @@ check_for_mxl_update() {
 
 	if [ "$latest_mxl_patch_version" = "" ]; then
 		log "No connection to $mxl_title server"
-		return 0
+		return 1
 	fi
 
     # Check if new mxl version available
     if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
         log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
-        return 0
+        return 1
     fi
     
-    return 1
+    return 0
 }
 
 check_d2_binary_dir() {
     if [ ! -d "$d2_binary_dir" ]; then
 	    show_zenity_info "Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
-	    if [ "$directory" != "" ]; then
-            replace_config_file_value "d2_binary_dir" "$directory"
+	    if [ "$directory" = "" ]; then
+	        log "Error: directory is empty"
+	        return 1
 	    fi
-        return 1
+        replace_config_file_value "d2_binary_dir" "$directory"
     fi
     return 0
 }
@@ -356,8 +351,7 @@ check_wine_standalone() {
             wine_version="5"
         fi
         
-        show_zenity_question "Wine $wine_version AppImage is required. Download now?"
-        if [ $? = 1 ]; then
+        if ! show_zenity_question "Wine $wine_version AppImage is required. Download now?"; then
             log "User canceled"
             return 1
         fi
@@ -389,37 +383,33 @@ check_wine_standalone() {
         fi
         
         show_zenity_info "Wine $wine_version successfully downloaded"
-        return 1
     fi
     return 0
 }
 
 check_glide_installation() {
     if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
-        show_zenity_question "Glide Wrapper not installed. Install now?"
-        if [ $? = 1 ]; then
+        if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
             log "User canceled"
             return 1;
         fi
-        (install_glide) &
-        show_zenity_progress $! "Installing Glide Wrapper"
+    	if [ ! -f "$glide_res_file" ]; then
+		    zenity_error "$glide_res_file not found!"
+	        exit 1;
+	    fi
+        (unzip -o "$glide_res_file" -d "$d2_binary_dir") &
+        if ! show_zenity_progress $! "Installing Glide Wrapper"; then
+            show_zenity_error "Error install glide wrapper"
+            return 1
+        fi
+        
         show_zenity_info "Glide wrapper successfully installed"
-        return 1
     fi
     return 0
 }
 
-install_glide() {
-	if [ ! -f "$glide_res_file" ]; then
-		zenity_error "$glide_res_file not found!"
-		exit 1;
-	fi
-    unzip -o "$glide_res_file" -d "$d2_binary_dir"
-    return 0
-}
-
 show_mxl_download_gui() {
-    if check_for_mxl_update; then
+    if ! check_for_mxl_update; then
         show_zenity_info "No $mxl_title update available"
         return 1
     else
@@ -455,6 +445,8 @@ show_mxl_download_gui() {
 	        show_zenity_error "Download error"
 	        return 1
         fi
+        
+        show_zenity_info "$mxl_title $latest_mxl_patch_version successfully downloaded"
     fi
     return 0
 }
@@ -526,8 +518,7 @@ exec_diablo() {
 
 exec_d2_stats() {
     if [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
-        show_zenity_question "D2Stats is required. Download now?"
-        if [ $? = 1 ]; then
+        if ! show_zenity_question "D2Stats is required. Download now?"; then
             return 1
         fi
         (
@@ -539,19 +530,26 @@ exec_d2_stats() {
             rm "$rar_file"
             log " D2Stats successfully downloaded"
         ) &
-        show_zenity_progress $! "Downloading D2Stats"
+        if ! show_zenity_progress $! "Downloading D2Stats"; then
+            rm -f -r "$d2_stats_res_dir"
+            show_zenity_error "Error installing D2Stats"
+            return 1
+        fi
     fi
     
     if [ ! -f "$d2_binary_dir/$d2_sigma_loader_exe" ]; then
-        show_zenity_question "$d2_sigma_loader_exe is required. Download now?"
-        if [ $? = 1 ]; then
+        if ! show_zenity_question "$d2_sigma_loader_exe is required. Download now?"; then
             return 1
         fi
         (
             curl -Lk "$d2_sigma_loader_url" -o "$d2_binary_dir/$d2_sigma_loader_exe"
             log " $d2_sigma_loader_exe successfully downloaded"
-        ) &    
-        show_zenity_progress $! "Downloading $d2_sigma_loader_exe"
+        ) & 
+        if ! show_zenity_progress $! "Downloading $d2_sigma_loader_exe"; then
+            rm -f "$d2_binary_dir/$d2_sigma_loader_exe"
+            show_zenity_error "Error installing $d2_sigma_loader_exe"
+            return 1
+        fi
     fi
 
 	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
@@ -615,8 +613,11 @@ exec_import_data() {
 
 check_d2_binary_dir || restart_script
 
-(check_for_update || send_notify "New $script_id update available") &
-(check_for_mxl_update || send_notify "New $mxl_title update available") &
+# Refresh config file
+. "$script_config_file"
+
+(check_for_update && send_notify "New $script_id update available") &
+(check_for_mxl_update && send_notify "New $mxl_title update available") &
 
 # Main
 while(true); do
@@ -701,10 +702,10 @@ while(true); do
         exec_export_data
     fi
    if [ "$result" = "$item_10" ]; then
-        show_edit_config
+        show_edit_config && restart_script
     fi
     if [ "$result" = "$item_11" ]; then
-        show_update_gui
+        show_update_gui && restart_script
     fi
     if [ "$result" = "$item_12" ]; then
         show_help_gui
