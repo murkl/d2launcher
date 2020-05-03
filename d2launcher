@@ -31,6 +31,7 @@ gui_dialog_height=150
 gui_info_font="monospace"
 gui_info_color="#87270A"
 gui_info_size="8"
+gui_info_theme='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
 
 # Desktop file
 desktop_file_name="Diablo II"
@@ -140,20 +141,20 @@ zenity() {
 show_zenity_info() {
     text="$1" && shift
     log "$text"
-	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
 	return $?
 }
 
 show_zenity_error() {
     text="$1" && shift
     log "$text"
-	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
 	return $?
 }
 
 show_zenity_question() {
     text="$1" && shift
-    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@"
+    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$text" "$@"
     return $?
 }
 
@@ -161,7 +162,7 @@ show_zenity_progress() {
     piped_pid="$1" && shift    
     text="$1" && shift
     log "Process id = $piped_pid"
-    tail -f /dev/null --pid $piped_pid | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="\n$text\n" "$@" || (kill $(list_children_pid $piped_pid) | return 1 ) )
+    tail -f /dev/null --pid $piped_pid | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $gui_info_theme><b>$text</b></span>" "$@" || (kill $(list_children_pid $piped_pid) | return 1 ) )
     return $?
 }
 
@@ -247,7 +248,7 @@ show_update_gui() {
         version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
     fi    
     version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
-	update_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
+	update_info='<span '$gui_info_theme'><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
     
     show_zenity_question "$update_info"
 
@@ -456,7 +457,7 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1;
-    info_text='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>Choose '$mxl_title' patch to install</b></span>'
+    info_text='<span '$gui_info_theme'><b>Choose '$mxl_title' patch to install</b></span>'
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
@@ -625,8 +626,8 @@ while(true); do
 		menu_mxl_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
 	fi
 	
-	menu_d2launcher_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>D2LAUNCHER</b>\t'$version'</span>'
-	menu_mxl_info='<span font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"><b>MEDIAN XL</b>\t'$menu_mxl_info_text'</span>'
+	menu_d2launcher_info='<span '$gui_info_theme'><b>D2LAUNCHER</b>\t'$version'</span>'
+	menu_mxl_info='<span '$gui_info_theme'><b>MEDIAN XL</b>\t'$menu_mxl_info_text'</span>'
 	
 	info_text="$menu_d2launcher_info\n$menu_mxl_info\n"
 	 
@@ -659,32 +660,32 @@ while(true); do
     fi
     if [ "$result" = "$item_02" ]; then
         check_wine_standalone || continue
-        exec_d2_stats || continue
+        exec_d2_stats
     fi
     if [ "$result" = "$item_03" ]; then
-        show_mxl_download_gui || continue
+        show_mxl_download_gui
     fi
     if [ "$result" = "$item_04" ]; then
-        show_mxl_patch_gui || continue
+        show_mxl_patch_gui
     fi
     if [ "$result" = "$item_05" ]; then
         check_wine_standalone || continue
         check_glide_installation || continue
-        exec_glide_settings || continue
+        exec_glide_settings
     fi
     if [ "$result" = "$item_06" ]; then
         check_wine_standalone || continue
-        exec_d2_video_settings || continue
+        exec_d2_video_settings
     fi
     if [ "$result" = "$item_07" ]; then
         check_wine_standalone || continue
-        exec_wine_config || continue
+        exec_wine_config
     fi
     if [ "$result" = "$item_08" ]; then
-        exec_import_data || continue
+        exec_import_data 
     fi
     if [ "$result" = "$item_09" ]; then
-        exec_export_data || continue
+        exec_export_data
     fi
    if [ "$result" = "$item_10" ]; then
         show_edit_config || restart_script
@@ -693,6 +694,6 @@ while(true); do
         show_update_gui || restart_script
     fi
     if [ "$result" = "$item_12" ]; then
-        show_help_gui || continue
+        show_help_gui
     fi
 done
