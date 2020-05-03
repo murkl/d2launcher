@@ -647,13 +647,13 @@ while(true); do
 
     # If user exit
     if [ $? = 1 ]; then
-        exit 0;
+        break; exit 0;
     fi
     if [ "$result" = "$item_01" ]; then
         check_wine_standalone || continue
         check_glide_installation || continue
         exec_diablo
-        exit 0;
+        break; exit 0;
     fi
     if [ "$result" = "$item_02" ]; then
         check_wine_standalone || continue
