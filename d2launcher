@@ -472,6 +472,7 @@ check_d2_dir() {
 	        return 1
 	    fi
         replace_config_file_value "d2_dir" "$directory"
+        show_zenity_info "Diablo II set to:\n\n$directory"
         restart_script
     fi
 }
