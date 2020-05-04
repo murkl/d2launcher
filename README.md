@@ -26,7 +26,7 @@ Enjoy the simplicity :)
 
 ## Example Configuration
 ```
-d2_dir="/home/$USER/.local/apps/diablo2"
+d2_dir="$HOME/.local/apps/diablo2"
 d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 wine5_enabled=true
