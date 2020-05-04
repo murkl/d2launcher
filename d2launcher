@@ -371,7 +371,7 @@ check_wine_default() {
     fi
 }
 
-check_mxl_update() {
+check_update_mxl() {
     update_param="$1"
 
     # Parse mxl patch infos
@@ -678,7 +678,7 @@ show_gui_menu_update_manager() {
 	item_04="Force D2Stats update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        check_mxl_update "install"; return
+        check_update_mxl "install"; return
     fi
     if [ "$result" = "$item_02" ]; then
         check_update_script "install"; return
@@ -732,7 +732,7 @@ else
         (check_update_script && send_notify "New $gui_title update available") &
     fi
     if [ "$mxl_update_check" = "true" ]; then
-        (check_mxl_update && send_notify "New $mxl_title update available") &
+        (check_update_mxl && send_notify "New $mxl_title update available") &
     fi
 fi
 
