@@ -1,5 +1,6 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
+# https://developer.gnome.org/pygtk/stable/pango-markup-language.html
 
 version=3.2.0
 
@@ -24,13 +25,16 @@ script_help_file="$script_res_dir/$script_id-help.html"
 
 # Gui
 gui_title="Diablo II • Median XL • Standalone"
-gui_width=465
-gui_height=365
-gui_dialog_width=300
-gui_dialog_height=150
-gui_info_font="monospace"
-gui_info_color="#87270A"
-gui_info_size="8"
+gui_width=358
+gui_height=258
+gui_dialog_width=280
+gui_dialog_height=140
+gui_font="monospace"
+gui_color="#87270A"
+gui_size="8"
+gui_dialog_font="monospace"
+gui_dialog_color="#5D5D5D"
+gui_dialog_size="8"
 
 # Desktop file
 desktop_file_name="Diablo II"
@@ -83,21 +87,33 @@ log() {
 	echo "$(date "+%H:%M:%S") $script_id-$version: $*"
 }
 
+check_config_key() {
+    config_key="$1"
+    config_value="$2"
+    if ! grep -qrnw "$script_config_file" -e "$config_key=*"; then
+        echo "$config_key=\"$config_value\"" >> "$script_config_file"
+        log "Added $config_key=$config_value to $script_config_file"
+    fi
+}
+
 # Create new config file
 if [ ! -f "$script_config_file" ]; then
-    {
-        echo "d2_binary_dir=\"$d2_binary_dir\""
-        echo "d2_exe=\"$d2_exe\""
-        echo "d2_args=\"$d2_args\""
-        echo "wine5_enabled=$wine5_enabled"
-        echo "gui_width=$gui_width"
-        echo "gui_height=$gui_height"
-        echo "desktop_icon=$desktop_icon"
-        echo "update_check=$update_check"
-        echo "mxl_update_check=$mxl_update_check"
-    } >> "$script_config_file"
+    touch "$script_config_file"
     log "$script_config_file created"
 fi
+
+# Check and create config entries
+check_config_key "d2_dir" "$d2_dir"
+check_config_key "d2_exe" "$d2_exe"
+check_config_key "d2_args" "$d2_args"
+check_config_key "wine5_enabled" "$wine5_enabled"
+check_config_key "gui_width" "$gui_width"
+check_config_key "gui_height" "$gui_height"
+check_config_key "desktop_icon" "$desktop_icon"
+check_config_key "update_check" "$update_check"
+check_config_key "mxl_update_check" "$mxl_update_check"
+
+log "Config file used: $script_config_file"
 
 # Import config file
 . "$script_config_file"
@@ -133,33 +149,50 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
-SPAN_THEMING='font_family="'$gui_info_font'" foreground="'$gui_info_color'" font="'$gui_info_size'"'
-
 zenity() {
 	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
 }
 
+show_zenity_dialog() {
+    text="$1" && shift
+    style='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
+	zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$style" "$@"
+}
+
 show_zenity_info() {
     text="$1" && shift
-    log "$text"
-	zenity --info --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b></span>" "$@"
+	show_zenity_dialog "<b>$text</b>" --info "$@" 
 }
 
 show_zenity_error() {
     text="$1" && shift
-    log "$text"
-	zenity --error --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b></span>" "$@"
+    show_zenity_dialog "<b>$text</b>" --error "$@" 
 }
 
 show_zenity_question() {
     text="$1" && shift
-    zenity --question --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n$text</span>" "$@"
+    show_zenity_dialog "$text" --question "$@" 
 }
 
 show_zenity_progress() {
     piped_pid="$1" && shift    
     text="$1" && shift
-    tail -f /dev/null --pid "$piped_pid" | ( zenity --progress --pulsate --auto-close --width="$gui_dialog_width" --height="$gui_dialog_height" --text="<span $SPAN_THEMING>\n<b>$text</b>\n</span>" "$@" || (kill -9 $(list_children_pid "$piped_pid"); log "Progress PID killed: $piped_pid"; return 1) )
+    tail -f /dev/null --pid "$piped_pid" | ( show_zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (kill -9 $(list_children_pid "$piped_pid"); log "Progress PID killed: $piped_pid"; return 1) )
+}
+
+show_zenity_menu() {
+    menu_text="$1" && shift
+    cancel_button_text="$1" && shift
+    ok_button_text="$1" && shift
+    mxl_version_info_text="not installed"
+	if [ -f "$d2_dir/$mxl_version_file_name" ]; then
+        # Read installed Median XL version
+		mxl_version_info_text=$(cat "$d2_dir/$mxl_version_file_name")
+	fi
+    text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
+    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$version' • '$mxl_version_info_text'</b></span>'
+    text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
+    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
 }
 
 restart_script() {
@@ -180,9 +213,9 @@ list_children_pid () {
 replace_config_file_value() {
     key=$1
     value=$2
+    check_config_key "$key" "$value"
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
     log "$key was set to $value"
-    return 0
 }
 
 create_desktop_file() {
@@ -197,7 +230,6 @@ create_desktop_file() {
 	    chmod +x "$desktop_file"
 	    log "$desktop_file created"
 	fi
-	return 0
 }
 
 remove_desktop_file() {
@@ -205,7 +237,6 @@ remove_desktop_file() {
 	    rm -f "$desktop_file"
 	    log "$desktop_file removed"
 	fi
-	return 0
 }
 
 check_for_update() {
@@ -221,7 +252,6 @@ check_for_update() {
         log "No update available. (latest $script_id version: $latest_version)"
         return 1
     fi
-    return 0
 }
 
 show_update_gui() {
@@ -281,23 +311,19 @@ show_update_gui() {
     
     show_zenity_info "Update $script_id-$latest_version successfully installed"
     restart_script
-    
-    return 0
 }
 
-show_edit_config() {
+show_gui_edit_configuration() {
     result=$(zenity --text-info --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
         restart_script
     fi
-    return 0
 }
 
-show_help_gui() {
+show_gui_help() {
     zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
-    return 0
 }
 
 exec_wine() {
@@ -350,7 +376,6 @@ check_wine_default() {
         
         show_zenity_info "Wine $wine_version successfully downloaded"
     fi
-    return 0
 }
 
 check_for_mxl_update() {
@@ -376,30 +401,27 @@ check_for_mxl_update() {
         log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
         return 1
     fi
-    
-    return 0
 }
 
 check_d2_binary_dir() {
-    if [ ! -d "$d2_binary_dir" ]; then
+    if [ ! -d "$d2_dir" ]; then
 	    show_zenity_info "Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
         if [ $? = 1 ]; then
             log "User exit"
-            exit 0;
+            return 1
         fi
 	    if [ "$directory" = "" ]; then
 	        log "Error: directory is empty"
 	        return 1
 	    fi
-        replace_config_file_value "d2_binary_dir" "$directory"
+        replace_config_file_value "d2_dir" "$directory"
         restart_script
     fi
-    return 0
 }
 
 check_glide_installation() {
-    if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
+    if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
         if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
             log "User canceled"
             return 1
@@ -408,7 +430,7 @@ check_glide_installation() {
 		    zenity_error "$glide_res_file not found!"
 	        return 1
 	    fi
-        (unzip -o "$glide_res_file" -d "$d2_binary_dir") &
+        (unzip -o "$glide_res_file" -d "$d2_dir") &
         if ! show_zenity_progress $! "Installing Glide Wrapper"; then
             show_zenity_error "Error install glide wrapper"
             return 1
@@ -416,7 +438,6 @@ check_glide_installation() {
         
         show_zenity_info "Glide wrapper successfully installed"
     fi
-    return 0
 }
 
 show_mxl_download_gui() {
@@ -459,10 +480,9 @@ show_mxl_download_gui() {
         
         show_zenity_info "$mxl_title $latest_mxl_patch_version successfully downloaded"
     fi
-    return 0
 }
 
-show_mxl_patch_gui() {
+show_gui_mxl_patch() {
 	if [ ! -d "$patch_files_dir" ]; then
 		show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
 		return 1
@@ -478,27 +498,23 @@ show_mxl_patch_gui() {
 
     # List path files
     cd "$patch_files_dir" || exit 1;
-    info_text="<span $SPAN_THEMING><b>Choose $mxl_title patch to install</b></span>"
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity --list --hide-header --ok-label="Patch" --cancel-label="Cancel" --text="$info_text\n" --column="Available local patches" )
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
             install_glide
-            unzip -o "$d2_patch_res_file" -d "$d2_binary_dir"
-            unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_binary_dir"
-            echo "$patch_version" > "$d2_binary_dir/$mxl_version_file_name"
+            unzip -o "$d2_patch_res_file" -d "$d2_dir"
+            unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_dir"
+            echo "$patch_version" > "$d2_dir/$mxl_version_file_name"
         ) &
         
         if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
             show_zenity_error "Error during patching $mxl_title $patch_version"
             return 1
         fi
-        
         show_zenity_info "$mxl_title $patch_version successfully patched"
-        
     fi
-    return 0
 }
 
 exec_d2_stats() {
@@ -522,16 +538,16 @@ exec_d2_stats() {
         fi
     fi
     
-    if [ ! -f "$d2_binary_dir/$d2_sigma_loader_exe" ]; then
+    if [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
         if ! show_zenity_question "$d2_sigma_loader_exe is required. Download now?"; then
             return 1
         fi
         (
-            curl -Lk "$d2_sigma_loader_url" -o "$d2_binary_dir/$d2_sigma_loader_exe"
+            curl -Lk "$d2_sigma_loader_url" -o "$d2_dir/$d2_sigma_loader_exe"
             log " $d2_sigma_loader_exe successfully downloaded"
         ) & 
         if ! show_zenity_progress $! "Downloading $d2_sigma_loader_exe"; then
-            rm -f "$d2_binary_dir/$d2_sigma_loader_exe"
+            rm -f "$d2_dir/$d2_sigma_loader_exe"
             show_zenity_error "Error installing $d2_sigma_loader_exe"
             return 1
         fi
@@ -549,39 +565,36 @@ exec_d2_stats() {
             break;
         fi
 	done
-	return 0
 }
 
 exec_diablo() {
-	if [ ! -f "$d2_binary_dir/$d2_exe" ]; then
-		show_zenity_error "$d2_binary_dir/$d2_exe not found"
+	if [ ! -f "$d2_dir/$d2_exe" ]; then
+		show_zenity_error "$d2_dir/$d2_exe not found"
 		return 1
 	fi
 
     if pgrep -x "$d2_stats_exe" >/dev/null; then
-	    exec_wine_exe "$d2_binary_dir/$d2_sigma_loader_exe" "$d2_args"
+	    exec_wine_exe "$d2_dir/$d2_sigma_loader_exe" "$d2_args"
     else
-	    exec_wine_exe "$d2_binary_dir/$d2_exe" "$d2_args"
+	    exec_wine_exe "$d2_dir/$d2_exe" "$d2_args"
     fi
-    return 0
+    exit 0;
 }
 
 exec_glide_settings() {
-	if [ ! -f "$d2_binary_dir/$d2_glide_exe" ]; then
-		show_zenity_error "$d2_binary_dir/$d2_glide_exe not found"
+	if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
+		show_zenity_error "$d2_dir/$d2_glide_exe not found"
 		return 1
 	fi
-    exec_wine_exe "$d2_binary_dir/$d2_glide_exe"
-    return 0
+    exec_wine_exe "$d2_dir/$d2_glide_exe"
 }
 
 exec_d2_video_settings() {
-	if [ ! -f "$d2_binary_dir/$d2_vid_test_exe" ]; then
-		show_zenity_error "$d2_binary_dir/$d2_vid_test_exe not found"
+	if [ ! -f "$d2_dir/$d2_vid_test_exe" ]; then
+		show_zenity_error "$d2_dir/$d2_vid_test_exe not found"
 		return 1
 	fi
-    exec_wine_exe "$d2_binary_dir/$d2_vid_test_exe"
-	return 0
+    exec_wine_exe "$d2_dir/$d2_vid_test_exe"
 }
 
 exec_export_data() {
@@ -597,7 +610,6 @@ exec_export_data() {
 	cd "$mxl_savegames_dir" || exit 1;
 	zip -r -0 "$directory/$filename" .
 	show_zenity_info "Data successfully exported: $directory/$filename"
-	return 0
 }
 
 exec_import_data() {
@@ -608,74 +620,117 @@ exec_import_data() {
     mkdir -p "$mxl_savegames_dir"
 	unzip -o "$file" -d "$mxl_savegames_dir"
 	show_zenity_info "$mxl_savegames_dir successfully imported"
-	return 0
 }
 
-show_menu_settings() {
+show_gui_menu_settings() {
 	item_01="Edit Configuration"
 	item_02="Wine Settings"
 	item_03="Glide Wrapper Settings"
 	item_04="Diablo II Video Settings"
 	item_05="Import $mxl_title Savegames"
 	item_06="Export $mxl_title Savegames"
-		    info_text="<span $SPAN_THEMING><b>D2LAUNCHER</b>\t$version\n<b>MEDIAN XL</b>\t$mxl_version_info_text</span>"
-    result=$(zenity --list --ok-label="Ok" --cancel-label="Back" --text="$info_text\n" --hide-header --column="" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
+    result=$(show_zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
     if [ "$result" = "$item_01" ]; then
-        show_edit_config
+        show_gui_edit_configuration || return 1
+        return 0
     fi
     if [ "$result" = "$item_02" ]; then
         check_wine_default || return 1
-        exec_wine winecfg
+        exec_wine winecfg || return 1
+        return 0
     fi
     if [ "$result" = "$item_03" ]; then
         check_wine_default || return 1
         check_glide_installation || return 1
-        exec_glide_settings
+        exec_glide_settings || return 1
+        return 0
     fi
     if [ "$result" = "$item_04" ]; then
         check_wine_default || return 1
-        exec_d2_video_settings
+        exec_d2_video_settings || return 1
+        return 0
     fi
     if [ "$result" = "$item_05" ]; then
-        exec_import_data
+        exec_import_data || return 1
+        return 0
     fi
     if [ "$result" = "$item_06" ]; then
-        exec_export_data
+        exec_export_data || return 1
+        return 0
     fi
-    return 0
 }
 
-show_menu_update() {
-	item_01="Update $script_id"
-	item_02="Update $mxl_title"
-	item_03="Update Wine"
-	item_04="Update D2Stats"
-	    info_text="<span $SPAN_THEMING><b>D2LAUNCHER</b>\t$version\n<b>MEDIAN XL</b>\t$mxl_version_info_text</span>"
-    result=$(zenity --list --ok-label="Ok" --cancel-label="Back" --text="$info_text\n" --hide-header --column="" "$item_01" "$item_02" "$item_03" "$item_04")
+show_gui_menu_update_manager() {
+	item_01="Check for $github_repo update"
+	item_02="Check for $mxl_title update"
+	item_03="Force update Wine"
+	item_04="Force update D2Stats"
+    result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        show_update_gui
+        show_update_gui || return 1
+        return 0
     fi
     if [ "$result" = "$item_02" ]; then
-        show_mxl_download_gui
+        check_d2_binary_dir || return 1
+        show_mxl_download_gui || return 1
+        return 0
     fi
     if [ "$result" = "$item_03" ]; then
+        send_notify "not implemented yet"
         return 0
     fi
     if [ "$result" = "$item_04" ]; then
+        check_d2_binary_dir || return 1
+        send_notify "not implemented yet"
         return 0
     fi
 }
 
-
-check_d2_binary_dir || restart_script
-
-# Refresh config file
-. "$script_config_file"
+show_gui_menu_main() {
+	item_01="Diablo II"
+	item_02="Statistics"
+	item_03="$mxl_title Patches"
+	item_04="Update Manager"
+	item_05="Settings"
+	item_06="Help"
+    result=$(show_zenity_menu "" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
+    if [ $? = 1 ]; then
+        exit 0;
+    fi
+    if [ "$result" = "$item_01" ]; then
+        check_d2_binary_dir || return 1
+        check_wine_default || return 1
+        check_glide_installation || return 1
+        exec_diablo || return 1
+        return 0
+    fi
+    if [ "$result" = "$item_02" ]; then
+        check_wine_default || return 1
+        exec_d2_stats; return 1
+        return 0
+    fi
+    if [ "$result" = "$item_03" ]; then
+        check_d2_binary_dir || return 1
+        show_gui_mxl_patch || return 1
+        return 0
+    fi
+    if [ "$result" = "$item_04" ]; then
+        show_gui_menu_update_manager || return 1
+        return 0
+    fi
+    if [ "$result" = "$item_05" ]; then
+        show_gui_menu_settings || return 1
+        return 0
+    fi
+    if [ "$result" = "$item_06" ]; then
+        show_gui_help || return 1
+        return 0
+    fi
+}
 
 (check_for_update && send_notify "New $script_id update available") &
 (check_for_mxl_update && send_notify "New $mxl_title update available") &
 
-# Main
 while(true); do
 
     # Set wine default (if not set in config file)
@@ -693,50 +748,9 @@ while(true); do
 		remove_desktop_file
 	fi
 	
-    # Set Median XL version status
-    mxl_version_info_text="not installed"
-	if [ -f "$d2_binary_dir/$mxl_version_file_name" ]; then
-		mxl_version_info_text=$(cat "$d2_binary_dir/$mxl_version_file_name")
+	# Show main menu
+	if ! show_gui_menu_main; then
+	    log "Warning: show_gui_menu_main returns $?"
 	fi
-	
-    info_text="<span $SPAN_THEMING><b>D2LAUNCHER</b>\t$version\n<b>MEDIAN XL</b>\t$mxl_version_info_text</span>"
-	 
-    # Menu items
-	item_01="Diablo II"
-	item_02="Statistics"
-	item_03="$mxl_title Patches"
-	item_04="Update Manager"
-	item_05="Settings"
-	item_06="Help"
 
-    # Show menu
-    result=$(zenity --list --ok-label="Ok" --cancel-label="Exit" --text="$info_text" --hide-header --column="" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
-
-    # If user exit
-    if [ $? = 1 ]; then
-        break; exit 0;
-    fi
-    if [ "$result" = "$item_01" ]; then
-        check_wine_default || continue
-        check_glide_installation || continue
-        exec_diablo || continue
-        break; exit 0;
-    fi
-    if [ "$result" = "$item_02" ]; then
-        check_wine_default || continue
-        exec_d2_stats
-    fi
-    if [ "$result" = "$item_03" ]; then
-        show_mxl_patch_gui
-    fi
-
-    if [ "$result" = "$item_04" ]; then
-        show_menu_update
-    fi
-    if [ "$result" = "$item_05" ]; then
-        show_menu_settings
-    fi
-    if [ "$result" = "$item_06" ]; then
-        show_help_gui
-    fi
 done

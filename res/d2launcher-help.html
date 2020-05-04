@@ -52,13 +52,30 @@
         hr {
             border: 1px dashed LightGray
         }
+        #code_style {
+            font-family: monospace;
+            color: #5D5D5D;
+            border: 1px dashed LightGray
+        }
     </style>
 </head>
 
 <body>
     <h1>d2launcher Help</h1>
     <p><b>GitHub:</b> <a href="https://github.com/murkl/d2launcher">Link</a></p>
-    <br>
+    <h2>Example Configuration</h2>
+    <p id="code_style">
+        d2_dir=""<br>
+        d2_exec="Diablo II.exe"<br>
+        d2_args="-3dfx"<br>
+        wine5_enabled=true<br>
+        gui_width=400<br>
+        gui_height=260<br>
+        desktop_icon=true<br>
+        update_check=true<br>
+        mxl_update_check=true<br>
+    </p>
+    
     <h2>Diablo II Arguments</h2>
     <hr>
     <p>These are available arguments you can use in d2launcher.conf.</p>
@@ -80,14 +97,13 @@
             <td>-sndbkg</td>
         </tr>
     </table>
-    <br>
-    <br>
+    
     <h2>D2 Stats</h2>
     <hr>
     <p>Open D2Stats before start Diablo II because the script looking for a running D2Stats.exe and executes sigma-loader.exe instead of Diablo II.exe.</p>
     <h3>Issues</h3>
     <p>In case of your d2_binary_dir is inside the d2launcher dir (or sub dir), the sigma-loader.exe crashes on start. Workaround is to move the d2_binary_dir outside the d2launcher dir.</p>
-    <br>
+    
     <h2>Glide Wrapper Settings</h2>
     <hr>
     <p>My recommended settings for glide wrapper. It depends on your own hardware.</p>
@@ -130,7 +146,7 @@
             <td>desktopresolution</td>
         </tr>
     </table>
-    <br>
+    
     <h3>Renderer</h3>
     <table>
         <tr>
@@ -210,8 +226,7 @@
             <td>WGL_ARB_render_texture</td>
         </tr>
     </table>
-    <br>
-    <br>
+    
     <h2>External Libraries</h2>
     <hr>
     <p>Thanks to you guys!</p>
