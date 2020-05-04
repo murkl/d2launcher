@@ -155,7 +155,7 @@ fi
 
 restart_script() {
     log "Restarting $script_id-$version..."
-    ("$script_file" --restart) &
+    ("$script_file" --after-restart) &
     exit 0;
 }
 
@@ -744,7 +744,7 @@ show_gui_menu_main() {
 # ----------------------------------------------------------------------------------------------------------------------------------
 
 # Logging
-if [ "$1" = "--restart" ]; then
+if [ "$1" = "--after-restart" ]; then
     log "$script_id-$version restarted"
 else
     log "$script_id-$version started"
