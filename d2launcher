@@ -5,8 +5,8 @@
 version=3.2.0
 
 # Update
-github_author=murkl
-github_repo=d2launcher
+github_author="murkl"
+github_repo="d2launcher"
 github_tags_url="https://api.github.com/repos/$github_author/$github_repo/tags"
 update_check=true
 
@@ -15,27 +15,23 @@ script_file=$(readlink -f "$0")
 script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
 
-# Logging
+# Script resources
+script_config_file="$script_dir/$script_id.conf"
+script_res_dir="$script_dir/res"
+script_res_icon_file="$script_res_dir/icon.svg"
+script_res_help_file="$script_res_dir/$script_id-help.html"
 script_log_dir="$script_dir/log"
 logging_enabled=true
 
-# Config file
-script_config_file="$script_dir/$script_id.conf"
-
-# Script resources
-script_res_dir="$script_dir/res"
-script_icon_file="$script_res_dir/icon.svg"
-script_help_file="$script_res_dir/$script_id-help.html"
-
 # Gui
-gui_title="Diablo II • Median XL • Standalone"
+gui_title="D2Launcher"
 gui_width=358
 gui_height=258
-gui_dialog_width=280
-gui_dialog_height=140
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="8"
+gui_dialog_width=280
+gui_dialog_height=140
 gui_dialog_font="monospace"
 gui_dialog_color="#5D5D5D"
 gui_dialog_size="8"
@@ -54,16 +50,13 @@ wineprefix="$script_dir/.wineprefix"
 wine5_enabled=false
 wine_default=""
 
-# Patch files
-patch_files_dir="$script_res_dir/patches"
-patch_file_prefix="$script_id-mxl"
-
 # Diablo II resources
+patch_files_dir="$script_res_dir/patches"
 d2_patch_res_file="$script_res_dir/d2-1.13c_files.zip"
 glide_res_file="$script_res_dir/gl32ogl14e.zip"
 
-# Diablo II binary
-d2_binary_dir=""
+# Diablo II binaries
+d2_dir=""
 d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 d2_vid_test_exe="D2VidTst.exe"
@@ -74,11 +67,12 @@ mxl_title="Median XL"
 mxl_version_url="http://get.median-xl.com/launcher/?get=versions"
 mxl_dlls_url="http://get.median-xl.com/launcher/?get=dlls"
 mxl_mod_url="http://get.median-xl.com/launcher/?get=mod"
-mxl_version_file_name="$patch_file_prefix.version"
+mxl_id="$script_id-mxl"
+mxl_version_file_name="$mxl_id.version"
 mxl_update_check=true
 
 mxl_savegames_dir="$wineprefix/drive_c/users/$USER/Application Data/MedianXL"
-mxl_savegames_prefix="$patch_file_prefix-save"
+mxl_savegames_prefix="$mxl_id-save"
 
 # D2 Stats
 d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
@@ -130,7 +124,7 @@ check_config_key "logging_enabled" "$logging_enabled"
 . "$script_config_file"
 
 send_notify() {
-	notify-send -i "$script_icon_file" "$gui_title" "$*"
+	notify-send -i "$script_res_icon_file" "$gui_title" "$*"
 }
 
 # Check dependencies
@@ -187,7 +181,7 @@ create_desktop_file() {
 	    {
 	        echo "[Desktop Entry]"
 	        echo "Name=$desktop_file_name"
-	        echo "Icon=$script_icon_file"
+	        echo "Icon=$script_res_icon_file"
 	        echo "Exec=\"$script_file\""
 	        echo "Type=Application"
 	    } >> "$desktop_file"
@@ -221,7 +215,7 @@ check_for_update() {
 }
 
 zenity() {
-	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
+	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_res_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
 }
 
 show_zenity_dialog() {
@@ -339,10 +333,34 @@ show_gui_edit_configuration() {
 }
 
 show_gui_help() {
-    zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
+    zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_res_help_file"
 }
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+
+check_for_mxl_update() {
+    if [ "$mxl_update_check" = "false" ]; then
+        return 1
+    fi    
+    
+    # Parse mxl patch infos
+    latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
+    curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
+	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
+
+	if [ "$latest_mxl_patch_version" = "" ]; then
+		log "No connection to $mxl_title server"
+		return 1
+	fi
+	
+    # Check if new mxl version available
+    if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_patch_version.zip" ]; then
+        log "No $mxl_title update available"
+        return 1
+    fi
+    
+    log "New $mxl_title $latest_mxl_patch_version update available!" 
+}
 
 check_wine_default() {
     if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
@@ -388,32 +406,6 @@ check_wine_default() {
         
         show_zenity_info "Wine $wine_version successfully downloaded"
     fi
-}
-
-check_for_mxl_update() {
-    if [ "$mxl_update_check" = "false" ]; then
-        return 1
-    fi    
-    
-    # Parse mxl patch infos
-    latest_mxl_patch_json_file="/tmp/$script_id-mxl_patch.json"
-    curl "$mxl_version_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
-
-	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
-	latest_mxl_patch_prefix="$patch_file_prefix-$latest_mxl_patch_version"
-
-	if [ "$latest_mxl_patch_version" = "" ]; then
-		log "No connection to $mxl_title server"
-		return 1
-	fi
-	
-    # Check if new mxl version available
-    if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
-        log "No $mxl_title update available"
-        return 1
-    fi
-    
-    log "New $mxl_title $latest_mxl_patch_version update available!" 
 }
 
 check_d2stats() {
@@ -497,6 +489,8 @@ check_glide_wrapper() {
     fi
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------
+
 exec_wine() {
     check_wine_default || return 1
     log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
@@ -506,6 +500,8 @@ exec_wine() {
 exec_wine_exe() {
     exec_wine start /unix "$@"
 }
+
+# ----------------------------------------------------------------------------------------------------------------------------------
 
 exec_diablo() {
     check_d2_dir || return 1
@@ -565,6 +561,8 @@ exec_d2_video_settings() {
     exec_wine_exe "$d2_dir/$d2_vid_test_exe"
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------
+
 show_gui_mxl_update() {
     check_d2_dir || return 1
     
@@ -621,19 +619,19 @@ show_gui_mxl_patches() {
 
     # List patch files
     cd "$patch_files_dir" || exit 1;
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
-    patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
+    patch_file_name=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
+    patch_file_name_version=$(echo "$patch_file_name" | rev | cut -f 1 -d '-' | rev)
 
-    if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
+    if  [ $? = 0 ] && [ "$patch_file_name" != "" ]; then
         (
             unzip -o "$d2_patch_res_file" -d "$d2_dir"
-            unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_dir"
-            echo "$patch_version" > "$d2_dir/$mxl_version_file_name"
-        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
-            show_zenity_error "Error during patching $mxl_title $patch_version"
+            unzip -o "$patch_files_dir/$patch_file_name.zip" -d "$d2_dir"
+            echo "$patch_file_name_version" > "$d2_dir/$mxl_version_file_name"
+        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_file_name_version"; then
+            show_zenity_error "Error during patching $mxl_title $patch_file_name_version"
             return 1
         fi
-        show_zenity_info "$mxl_title $patch_version successfully patched"
+        show_zenity_info "$mxl_title $patch_file_name_version successfully patched"
     fi
 }
 
@@ -661,6 +659,8 @@ show_gui_export_savegames() {
 	zip -r -0 "$directory/$filename" .
 	show_zenity_info "Data successfully exported: $directory/$filename"
 }
+
+# ----------------------------------------------------------------------------------------------------------------------------------
 
 show_gui_menu_settings() {
 	item_01="Edit Configuration"
@@ -692,9 +692,9 @@ show_gui_menu_settings() {
 
 show_gui_menu_update_manager() {
 	item_01="Check for $mxl_title update"
-	item_02="Force update Wine"
-	item_03="Force update D2Stats"
-	item_04="Update Script"
+	item_02="Check for $gui_title update"
+	item_03="Force Wine update"
+	item_04="Force D2Stats update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
         show_gui_mxl_update; return
@@ -740,6 +740,8 @@ show_gui_menu_main() {
         show_gui_help; return
     fi
 }
+
+# ----------------------------------------------------------------------------------------------------------------------------------
 
 # Logging
 if [ "$1" = "--restart" ]; then
