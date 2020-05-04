@@ -26,7 +26,7 @@ Enjoy the simplicity :)
 
 ## Example Configuration
 ```
-d2_binary_dir="/home/$USER/.local/apps/diablo2"
+d2_dir="/home/$USER/.local/apps/diablo2"
 d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 wine5_enabled=true
@@ -35,10 +35,11 @@ gui_height=365
 desktop_icon=true
 update_check=true
 mxl_update_check=true
+logging_enabled=true
 ```
 
 ## Dependencies
-You will need a Diablo II installation! The script will ask for your for the location (d2_binary_dir).
+You will need a Diablo II installation to work! (the script will ask you for the location)
 
 ### Arch
 ```
@@ -51,7 +52,6 @@ sudo apt install zenity curl p7zip unrar jq wmctrl
 ```
 
 ## Run the script
-On first execution you will ask for the Diablo II installation dir (d2_binary_dir).
 ```
 ./d2launcher
 ```
