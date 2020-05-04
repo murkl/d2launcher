@@ -46,23 +46,29 @@
         
         tr,
         td {
-            padding: 5px;
+            padding: 8px;
         }
         
         hr {
-            border: 1px dashed LightGray
+            border: 1px dashed LightGray;
+            margin: 32px;
+            margin-top: 16px;
+            margin-bottom: 16px;
         }
         #code_style {
             font-family: monospace;
             color: #5D5D5D;
-            border: 1px dashed LightGray
+            border: 1px dashed LightGray;
+            padding: 8px;
         }
     </style>
 </head>
 
 <body>
+
     <h1>d2launcher Help</h1>
-    <p><b>GitHub:</b> <a href="https://github.com/murkl/d2launcher">Link</a></p>
+    <p><a href="https://github.com/murkl/d2launcher">view on GitHub</a></p>
+    
     <h2>Example Configuration</h2>
     <p id="code_style">
         d2_dir=""<br>
@@ -74,10 +80,12 @@
         desktop_icon=true<br>
         update_check=true<br>
         mxl_update_check=true<br>
+        logging_enabled=true<br>
     </p>
     
-    <h2>Diablo II Arguments</h2>
     <hr>
+    
+    <h2>Diablo II Arguments</h2>
     <p>These are available arguments you can use in d2launcher.conf.</p>
     <table>
         <tr>
@@ -98,14 +106,16 @@
         </tr>
     </table>
     
-    <h2>D2 Stats</h2>
     <hr>
+    
+    <h2>D2 Stats</h2>
     <p>Open D2Stats before start Diablo II because the script looking for a running D2Stats.exe and executes sigma-loader.exe instead of Diablo II.exe.</p>
     <h3>Issues</h3>
     <p>In case of your d2_binary_dir is inside the d2launcher dir (or sub dir), the sigma-loader.exe crashes on start. Workaround is to move the d2_binary_dir outside the d2launcher dir.</p>
     
-    <h2>Glide Wrapper Settings</h2>
     <hr>
+    
+    <h2>Glide Wrapper Settings</h2>
     <p>My recommended settings for glide wrapper. It depends on your own hardware.</p>
     <h3>Settings</h3>
     <table>
@@ -227,8 +237,9 @@
         </tr>
     </table>
     
-    <h2>External Libraries</h2>
     <hr>
+
+    <h2>External Libraries</h2>
     <p>Thanks to you guys!</p>
     <p>
     <a href="https://median-xl.com">https://median-xl.com</a><br>

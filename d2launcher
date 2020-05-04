@@ -124,6 +124,7 @@ check_config_key "gui_height" "$gui_height"
 check_config_key "desktop_icon" "$desktop_icon"
 check_config_key "update_check" "$update_check"
 check_config_key "mxl_update_check" "$mxl_update_check"
+check_config_key "logging_enabled" "$logging_enabled"
 
 # Import config file
 . "$script_config_file"
@@ -690,16 +691,16 @@ show_gui_menu_settings() {
 }
 
 show_gui_menu_update_manager() {
-	item_01="Check for $github_repo update"
-	item_02="Check for $mxl_title update"
-	item_03="Force update Wine"
-	item_04="Force update D2Stats"
+	item_01="Check for $mxl_title update"
+	item_02="Force update Wine"
+	item_03="Force update D2Stats"
+	item_04="Update Script"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        show_gui_update_script; return
+        show_gui_mxl_update; return
     fi
     if [ "$result" = "$item_02" ]; then
-        show_gui_mxl_update; return
+        show_gui_update_script; return
     fi
     if [ "$result" = "$item_03" ]; then
         check_wine_default "force"; return 
