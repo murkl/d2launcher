@@ -82,13 +82,13 @@ d2_stats_exe="D2Stats.exe"
 d2_sigma_loader_exe="sigma-loader.exe"
 
 log() {
-    styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$version: $@"
+    styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$version: $*"
     printf '%s\n' "$styled_text"
     
     if [ "$logging_enabled" = "true" ]; then
         mkdir -p "$script_log_dir"
         logfile="$script_log_dir/$script_id-$version.log"
-        touch $logfile
+        touch "$logfile"
         printf '%s\n' "$styled_text" >> "$logfile"
     fi
 }
@@ -229,7 +229,7 @@ show_zenity_progress() {
     text="$1" && shift
     tail -f /dev/null --pid "$piped_pid" | (
         show_zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (
-            kill -9 $(list_all_children_pid "$piped_pid")
+            kill -9 "$(list_all_children_pid "$piped_pid")"
             log "Progress PID killed: $piped_pid"
             return 1
         )
@@ -252,8 +252,7 @@ show_zenity_menu() {
 }
 
 show_gui_edit_configuration() {
-    result=$(zenity --text-info --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
-    if [ $? = 0 ]; then
+    if result=$(zenity --text-info --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file"); then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
         restart_script
@@ -396,6 +395,8 @@ check_update_mxl() {
     # Show download gui
     if [ "$update_param" = "install" ]; then
         check_d2_dir || return 1
+        
+        latest_mxl_patch_prefix="$mxl_id-$latest_mxl_patch_version"
         # Create tmp download dir
         tmp_dir="/tmp/$latest_mxl_patch_prefix"
         rm -f -r "$tmp_dir"
@@ -403,20 +404,20 @@ check_update_mxl() {
         cd "$tmp_dir" || exit 1;
 
         ( # Downloading
-            log " Downloading $mxl_title $latest_mxl_patch_version dlls ..."
+            log " Downloading $latest_mxl_patch_prefix dlls ..."
             curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
-            log " Downloading $mxl_title $latest_mxl_patch_version mod ..."
+            log " Downloading $latest_mxl_patch_prefix mod ..."
             curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"   
-        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
+        ) & if ! show_zenity_progress $! "Downloading $latest_mxl_patch_prefix"; then
             show_zenity_error "Download error"
             return 1
         fi
         
         ( # Extracting
-            log " Extracting $mxl_title dll files ..."
+            log " Extracting $latest_mxl_patch_prefix dll files ..."
             7z e "$tmp_dir/dlls.7z" -aoa
             rm -f "$tmp_dir/dlls.7z"
-            log " Extracting $mxl_title mod files ..."
+            log " Extracting $latest_mxl_patch_prefix mod files ..."
             7z e "$tmp_dir/mod.7z" -aoa
             rm -f "$tmp_dir/mod.7z"
             log " Creating $latest_mxl_patch_prefix patch ..."
@@ -427,7 +428,7 @@ check_update_mxl() {
             return 1
         fi
         
-        show_zenity_info "$mxl_title $latest_mxl_patch_version patch successfully downloaded"
+        show_zenity_info "$latest_mxl_patch_prefix successfully downloaded"
     fi
 }
 
@@ -516,7 +517,7 @@ check_glide_wrapper() {
 
 exec_wine() {
     check_wine_default || return 1
-    log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
+    log "Executing:env WINEPREFIX=$wineprefix $wine_default $*"
     env WINEPREFIX="$wineprefix" "$wine_default" "$@"
 }
 
@@ -600,19 +601,19 @@ show_gui_mxl_patches() {
 
     # List patch files
     cd "$patch_files_dir" || exit 1;
-    patch_file_name=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
-    patch_file_name_version=$(echo "$patch_file_name" | rev | cut -f 1 -d '-' | rev)
+    patch_file_name=$(find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
 
-    if  [ $? = 0 ] && [ "$patch_file_name" != "" ]; then
+    if [ "$patch_file_name" != "" ]; then
+        patch_file_name_version=$(echo "$patch_file_name" | rev | cut -f 1 -d '-' | rev)
         (
             unzip -o "$d2_patch_res_file" -d "$d2_dir"
             unzip -o "$patch_files_dir/$patch_file_name.zip" -d "$d2_dir"
             echo "$patch_file_name_version" > "$d2_dir/$mxl_version_file_name"
-        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_file_name_version"; then
-            show_zenity_error "Error during patching $mxl_title $patch_file_name_version"
+        ) & if ! show_zenity_progress $! "Patching $patch_file_name-$patch_file_name_version"; then
+            show_zenity_error "Error during patching $patch_file_name-$patch_file_name_version"
             return 1
         fi
-        show_zenity_info "$mxl_title $patch_file_name_version successfully patched"
+        show_zenity_info "$patch_file_name $patch_file_name_version successfully patched"
     fi
 }
 
