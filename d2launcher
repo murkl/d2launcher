@@ -15,6 +15,8 @@ script_file=$(readlink -f "$0")
 script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
 
+script_log_dir="$script_dir/log"
+
 # Config file
 script_config_file="$script_dir/$script_id.conf"
 
@@ -84,7 +86,12 @@ d2_stats_exe="D2Stats.exe"
 d2_sigma_loader_exe="sigma-loader.exe"
 
 log() {
-	echo "$(date "+%H:%M:%S") $script_id-$version: $*"
+    styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$version: $@"
+    printf '%s\n' "$styled_text"
+    mkdir -p "$script_log_dir"
+    logfile="$script_log_dir/$script_id-$version.log"
+    touch $logfile
+    printf '%s\n' "$styled_text" >> "$logfile"
 }
 
 check_config_key() {
@@ -92,7 +99,7 @@ check_config_key() {
     config_value="$2"
     if ! grep -qrnw "$script_config_file" -e "$config_key=*"; then
         echo "$config_key=\"$config_value\"" >> "$script_config_file"
-        log "Added $config_key=$config_value to $script_config_file"
+        log "Added $config_key=\"$config_value\" to $script_config_file"
     fi
 }
 
@@ -113,13 +120,10 @@ check_config_key "desktop_icon" "$desktop_icon"
 check_config_key "update_check" "$update_check"
 check_config_key "mxl_update_check" "$mxl_update_check"
 
-log "Config file used: $script_config_file"
-
 # Import config file
 . "$script_config_file"
 
 send_notify() {
-    log "$*"
 	notify-send -i "$script_icon_file" "$gui_title" "$*"
 }
 
@@ -155,17 +159,19 @@ zenity() {
 
 show_zenity_dialog() {
     text="$1" && shift
-    style='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
-	zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$style" "$@"
+    styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
+	zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$@"
 }
 
 show_zenity_info() {
     text="$1" && shift
+    log "$text"
 	show_zenity_dialog "<b>$text</b>" --info "$@" 
 }
 
 show_zenity_error() {
     text="$1" && shift
+    log "$text"
     show_zenity_dialog "<b>$text</b>" --error "$@" 
 }
 
@@ -215,7 +221,7 @@ replace_config_file_value() {
     value=$2
     check_config_key "$key" "$value"
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
-    log "$key was set to $value"
+    log "Configuration: $key was set to \"$value\""
 }
 
 create_desktop_file() {
@@ -249,12 +255,14 @@ check_for_update() {
         return 1
     fi
     if [ "$version" = "$latest_version" ]; then
-        log "No update available. (latest $script_id version: $latest_version)"
+        log "No $script_id update available"
         return 1
     fi
+    
+    log "New $script_id $latest_version update available"
 }
 
-show_update_gui() {
+show_gui_update_script() {
     tmp_file="/tmp/$script_id.version"
     rm -f "$tmp_file"
     
@@ -290,9 +298,7 @@ show_update_gui() {
     ( # Download
         latest_zip_url=$(curl --silent "$github_tags_url" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
-    ) & 
-    
-    if ! show_zenity_progress $! "Downloading $script_id-$latest_version"; then
+    ) & if ! show_zenity_progress $! "Downloading $script_id-$latest_version"; then
         show_zenity_error "Error during download of $script_id-$latest_version"
         return 1
     fi
@@ -302,9 +308,7 @@ show_update_gui() {
 		unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
-    ) &    
-    
-    if ! show_zenity_progress $! "Installing $script_id-$latest_version"; then
+    ) & if ! show_zenity_progress $! "Installing $script_id-$latest_version"; then
         show_zenity_error "Error during installation of $script_id-$latest_version"
         return 1
     fi
@@ -327,6 +331,7 @@ show_gui_help() {
 }
 
 exec_wine() {
+    check_wine_default || return 1
     log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
     env WINEPREFIX="$wineprefix" "$wine_default" "$@"
 }
@@ -336,14 +341,14 @@ exec_wine_exe() {
 }
 
 check_wine_default() {
-    if [ ! -f "$wine_default" ]; then
+    if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
     
         wine_version="4"
         if [ "$wine5_enabled" = "true" ]; then
             wine_version="5"
         fi
         
-        if ! show_zenity_question "Wine $wine_version AppImage is required. Download now?"; then
+        if ! show_zenity_question "Wine $wine_version AppImage is required from internet.\n\n<b>Download now?</b>"; then
             log "User canceled"
             return 1
         fi
@@ -357,19 +362,22 @@ check_wine_default() {
                 wine_url="$wine5_url"
             fi
             curl -Lk "$wine_url" -o "$tmp_file"    
-        ) & 
-                
-        if ! show_zenity_progress $! "Downloading Wine $wine_version AppImage"; then
+        ) & if ! show_zenity_progress $! "Downloading Wine $wine_version AppImage"; then
             show_zenity_error "Error during download Wine $wine_version"
             return 1
         fi
         
         ( # Installation
-            mv "$tmp_file" "$wine_default"
-            chmod +x "$wine_default"  
-        ) & 
-                
-        if ! show_zenity_progress $! "Copy Wine $wine_version AppImage"; then
+            wine_output="$wine4"
+            if [ "$wine5_enabled" = "true" ]; then
+                wine_output="$wine5"
+            fi
+            mv "$tmp_file" "$wine_output"
+            chmod +x "$wine_output"
+            
+            # Refresh wineprefix
+            exec_winewineboot -u
+        ) & if ! show_zenity_progress $! "Copy Wine $wine_version AppImage"; then
             show_zenity_error "Error during copy Wine $wine_version"
             return 1
         fi
@@ -379,7 +387,6 @@ check_wine_default() {
 }
 
 check_for_mxl_update() {
-
     if [ "$mxl_update_check" = "false" ]; then
         return 1
     fi    
@@ -395,15 +402,17 @@ check_for_mxl_update() {
 		log "No connection to $mxl_title server"
 		return 1
 	fi
-
+	
     # Check if new mxl version available
     if [ -f "$patch_files_dir/$latest_mxl_patch_prefix.zip" ]; then
-        log "No updates available $mxl_title $latest_mxl_patch_version patch file allready downloaded"
+        log "No $mxl_title update available"
         return 1
     fi
+    
+    log "New $mxl_title $latest_mxl_patch_version update available!" 
 }
 
-check_d2_binary_dir() {
+check_d2_dir() {
     if [ ! -d "$d2_dir" ]; then
 	    show_zenity_info "Please choose Diablo II binary dir..."
 	    directory=$(zenity --file-selection --directory)
@@ -420,7 +429,7 @@ check_d2_binary_dir() {
     fi
 }
 
-check_glide_installation() {
+check_glide_wrapper() {
     if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
         if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
             log "User canceled"
@@ -435,12 +444,13 @@ check_glide_installation() {
             show_zenity_error "Error install glide wrapper"
             return 1
         fi
-        
         show_zenity_info "Glide wrapper successfully installed"
     fi
 }
 
-show_mxl_download_gui() {
+show_gui_mxl_update() {
+    check_d2_dir || return 1
+    
     if ! check_for_mxl_update; then
         show_zenity_info "No $mxl_title update available"
         return 1
@@ -456,8 +466,7 @@ show_mxl_download_gui() {
             curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
             log " Downloading $mxl_title $latest_mxl_patch_version mod ..."
             curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"   
-        ) &    
-        if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
+        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
 	        show_zenity_error "Download error"
 	        return 1
         fi
@@ -472,8 +481,7 @@ show_mxl_download_gui() {
             log " Creating $latest_mxl_patch_prefix patch ..."
             mkdir -p "$patch_files_dir"
             zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
-        ) &    
-        if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
+        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
 	        show_zenity_error "Download error"
 	        return 1
         fi
@@ -482,7 +490,9 @@ show_mxl_download_gui() {
     fi
 }
 
-show_gui_mxl_patch() {
+show_gui_mxl_patches() {
+    check_d2_dir || return 1
+
 	if [ ! -d "$patch_files_dir" ]; then
 		show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
 		return 1
@@ -491,25 +501,18 @@ show_gui_mxl_patch() {
 		show_zenity_error "$d2_patch_res_file not found!"
 		return 1
 	fi
-	if [ ! -f "$glide_res_file" ]; then
-		zenity_error "$glide_res_file not found!"
-		return 1
-	fi
 
-    # List path files
+    # List patch files
     cd "$patch_files_dir" || exit 1;
     patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
     patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
 
     if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
         (
-            install_glide
             unzip -o "$d2_patch_res_file" -d "$d2_dir"
             unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_dir"
             echo "$patch_version" > "$d2_dir/$mxl_version_file_name"
-        ) &
-        
-        if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
+        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
             show_zenity_error "Error during patching $mxl_title $patch_version"
             return 1
         fi
@@ -517,12 +520,16 @@ show_gui_mxl_patch() {
     fi
 }
 
-exec_d2_stats() {
-    if [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
-        if ! show_zenity_question "D2Stats is required. Download now?"; then
+check_d2stats() {
+    check_d2_dir || return 1
+    
+    # D2Stats
+    if [ "$1" = "force" ] || [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
+        if ! show_zenity_question "D2Stats is required from internet.\n\n<b>Download now?</b>"; then
             return 1
         fi
         (
+            rm -f -r "$d2_stats_res_dir"
             mkdir -p "$d2_stats_res_dir"
             cd "$d2_stats_res_dir" || exit 1;
             rar_file=d2-stats.rar
@@ -530,19 +537,21 @@ exec_d2_stats() {
             unrar x "$rar_file"
             rm "$rar_file"
             log " D2Stats successfully downloaded"
-        ) &
-        if ! show_zenity_progress $! "Downloading D2Stats"; then
+        ) & if ! show_zenity_progress $! "Downloading D2Stats"; then
             rm -f -r "$d2_stats_res_dir"
             show_zenity_error "Error installing D2Stats"
             return 1
         fi
+        show_zenity_info "D2 Stats successfully downloaded"
     fi
     
-    if [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
-        if ! show_zenity_question "$d2_sigma_loader_exe is required. Download now?"; then
+    # sigma-loader.exe
+    if [ "$1" = "force" ] || [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
+        if ! show_zenity_question "$d2_sigma_loader_exe is required from internet.\n\n<b>Download now?</b>"; then
             return 1
         fi
         (
+            rm -f "$d2_dir/$d2_sigma_loader_exe"
             curl -Lk "$d2_sigma_loader_url" -o "$d2_dir/$d2_sigma_loader_exe"
             log " $d2_sigma_loader_exe successfully downloaded"
         ) & 
@@ -551,10 +560,14 @@ exec_d2_stats() {
             show_zenity_error "Error installing $d2_sigma_loader_exe"
             return 1
         fi
+        show_zenity_info "$d2_sigma_loader_exe successfully downloaded"
     fi
+}
 
+exec_d2stats() {
+    check_wine_default || return 1
+    check_d2stats || return 1
 	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
-	
 	# Workaround for disabling D2 Stats system tray
 	for i in 1 2 3 4 5; do
 	    sleep 1
@@ -568,20 +581,30 @@ exec_d2_stats() {
 }
 
 exec_diablo() {
-	if [ ! -f "$d2_dir/$d2_exe" ]; then
-		show_zenity_error "$d2_dir/$d2_exe not found"
-		return 1
-	fi
-
+    check_d2_dir || return 1
+    check_wine_default || return 1
+    check_glide_wrapper || return 1
     if pgrep -x "$d2_stats_exe" >/dev/null; then
+        # If D2Stats is running do this ...
+        if [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
+	        show_zenity_error "$d2_dir/$d2_sigma_loader_exe not found"
+	        return 1
+	    fi
 	    exec_wine_exe "$d2_dir/$d2_sigma_loader_exe" "$d2_args"
     else
+	    if [ ! -f "$d2_dir/$d2_exe" ]; then
+		    show_zenity_error "$d2_dir/$d2_exe not found"
+		    return 1
+	    fi
 	    exec_wine_exe "$d2_dir/$d2_exe" "$d2_args"
     fi
     exit 0;
 }
 
 exec_glide_settings() {
+    check_d2_dir || return 1
+    check_wine_default || return 1
+    check_glide_wrapper || return 1
 	if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
 		show_zenity_error "$d2_dir/$d2_glide_exe not found"
 		return 1
@@ -590,6 +613,8 @@ exec_glide_settings() {
 }
 
 exec_d2_video_settings() {
+    check_d2_dir || return 1
+    check_wine_default || return 1
 	if [ ! -f "$d2_dir/$d2_vid_test_exe" ]; then
 		show_zenity_error "$d2_dir/$d2_vid_test_exe not found"
 		return 1
@@ -597,7 +622,7 @@ exec_d2_video_settings() {
     exec_wine_exe "$d2_dir/$d2_vid_test_exe"
 }
 
-exec_export_data() {
+show_gui_export_savegames() {
     if [ ! -d "$mxl_savegames_dir" ]; then
 	    show_zenity_error "$mxl_savegames_dir not found"
 		return 1   
@@ -612,7 +637,7 @@ exec_export_data() {
 	show_zenity_info "Data successfully exported: $directory/$filename"
 }
 
-exec_import_data() {
+show_gui_import_savegames() {
 	file=$(zenity --file-selection --file-filter="$mxl_savegames_prefix-*.zip")
 	if [ "$file" = "" ]; then
 	    return 1
@@ -631,32 +656,22 @@ show_gui_menu_settings() {
 	item_06="Export $mxl_title Savegames"
     result=$(show_zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
     if [ "$result" = "$item_01" ]; then
-        show_gui_edit_configuration || return 1
-        return 0
+        show_gui_edit_configuration; return
     fi
     if [ "$result" = "$item_02" ]; then
-        check_wine_default || return 1
-        exec_wine winecfg || return 1
-        return 0
+        exec_wine winecfg; return
     fi
     if [ "$result" = "$item_03" ]; then
-        check_wine_default || return 1
-        check_glide_installation || return 1
-        exec_glide_settings || return 1
-        return 0
+        exec_glide_settings; return
     fi
     if [ "$result" = "$item_04" ]; then
-        check_wine_default || return 1
-        exec_d2_video_settings || return 1
-        return 0
+        exec_d2_video_settings; return
     fi
     if [ "$result" = "$item_05" ]; then
-        exec_import_data || return 1
-        return 0
+        show_gui_import_savegames; return
     fi
     if [ "$result" = "$item_06" ]; then
-        exec_export_data || return 1
-        return 0
+        show_gui_export_savegames; return
     fi
 }
 
@@ -667,22 +682,16 @@ show_gui_menu_update_manager() {
 	item_04="Force update D2Stats"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        show_update_gui || return 1
-        return 0
+        show_gui_update_script; return
     fi
     if [ "$result" = "$item_02" ]; then
-        check_d2_binary_dir || return 1
-        show_mxl_download_gui || return 1
-        return 0
+        show_gui_mxl_update; return
     fi
     if [ "$result" = "$item_03" ]; then
-        send_notify "not implemented yet"
-        return 0
+        check_wine_default "force"; return 
     fi
     if [ "$result" = "$item_04" ]; then
-        check_d2_binary_dir || return 1
-        send_notify "not implemented yet"
-        return 0
+        check_d2stats "force"; return
     fi
 }
 
@@ -698,35 +707,28 @@ show_gui_menu_main() {
         exit 0;
     fi
     if [ "$result" = "$item_01" ]; then
-        check_d2_binary_dir || return 1
-        check_wine_default || return 1
-        check_glide_installation || return 1
-        exec_diablo || return 1
-        return 0
+        exec_diablo; return
     fi
     if [ "$result" = "$item_02" ]; then
-        check_wine_default || return 1
-        exec_d2_stats; return 1
-        return 0
+        exec_d2stats; return
     fi
     if [ "$result" = "$item_03" ]; then
-        check_d2_binary_dir || return 1
-        show_gui_mxl_patch || return 1
-        return 0
+        show_gui_mxl_patches; return
     fi
     if [ "$result" = "$item_04" ]; then
-        show_gui_menu_update_manager || return 1
-        return 0
+        show_gui_menu_update_manager; return
     fi
     if [ "$result" = "$item_05" ]; then
-        show_gui_menu_settings || return 1
-        return 0
+        show_gui_menu_settings; return
     fi
     if [ "$result" = "$item_06" ]; then
-        show_gui_help || return 1
-        return 0
+        show_gui_help; return
     fi
 }
+
+# Logging
+log "$script_id-$version started"
+log "Config: $script_config_file"
 
 (check_for_update && send_notify "New $script_id update available") &
 (check_for_mxl_update && send_notify "New $mxl_title update available") &
@@ -750,7 +752,6 @@ while(true); do
 	
 	# Show main menu
 	if ! show_gui_menu_main; then
-	    log "Warning: show_gui_menu_main returns $?"
+	    log "Warning: show_gui_menu_main returns with error"
 	fi
-
 done
