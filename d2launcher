@@ -15,7 +15,9 @@ script_file=$(readlink -f "$0")
 script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
 
+# Logging
 script_log_dir="$script_dir/log"
+logging_enabled=true
 
 # Config file
 script_config_file="$script_dir/$script_id.conf"
@@ -88,10 +90,13 @@ d2_sigma_loader_exe="sigma-loader.exe"
 log() {
     styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$version: $@"
     printf '%s\n' "$styled_text"
-    mkdir -p "$script_log_dir"
-    logfile="$script_log_dir/$script_id-$version.log"
-    touch $logfile
-    printf '%s\n' "$styled_text" >> "$logfile"
+    
+    if [ "$logging_enabled" = "true" ]; then
+        mkdir -p "$script_log_dir"
+        logfile="$script_log_dir/$script_id-$version.log"
+        touch $logfile
+        printf '%s\n' "$styled_text" >> "$logfile"
+    fi
 }
 
 check_config_key() {
@@ -153,65 +158,17 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 	exit 1;
 fi
 
-zenity() {
-	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
-}
-
-show_zenity_dialog() {
-    text="$1" && shift
-    styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
-	zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$@"
-}
-
-show_zenity_info() {
-    text="$1" && shift
-    log "$text"
-	show_zenity_dialog "<b>$text</b>" --info "$@" 
-}
-
-show_zenity_error() {
-    text="$1" && shift
-    log "$text"
-    show_zenity_dialog "<b>$text</b>" --error "$@" 
-}
-
-show_zenity_question() {
-    text="$1" && shift
-    show_zenity_dialog "$text" --question "$@" 
-}
-
-show_zenity_progress() {
-    piped_pid="$1" && shift    
-    text="$1" && shift
-    tail -f /dev/null --pid "$piped_pid" | ( show_zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (kill -9 $(list_children_pid "$piped_pid"); log "Progress PID killed: $piped_pid"; return 1) )
-}
-
-show_zenity_menu() {
-    menu_text="$1" && shift
-    cancel_button_text="$1" && shift
-    ok_button_text="$1" && shift
-    mxl_version_info_text="not installed"
-	if [ -f "$d2_dir/$mxl_version_file_name" ]; then
-        # Read installed Median XL version
-		mxl_version_info_text=$(cat "$d2_dir/$mxl_version_file_name")
-	fi
-    text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
-    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$version' • '$mxl_version_info_text'</b></span>'
-    text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
-    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
-}
-
 restart_script() {
-    log "Restarting script..."
-    "$script_file" &
+    log "Restarting $script_id-$version..."
+    ("$script_file" --restart) &
     exit 0;
 }
 
-list_children_pid () {
+list_all_children_pid() {
     local children_pid
     children_pid=$(ps -o pid= --ppid "$1")
     for pid in $children_pid; do
-        list_children_pid "$pid"
+        list_all_children_pid "$pid"
     done
     echo "$children_pid"
 }
@@ -260,6 +217,60 @@ check_for_update() {
     fi
     
     log "New $script_id $latest_version update available"
+}
+
+zenity() {
+	/usr/bin/zenity --name="$script_id" --title="$gui_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
+}
+
+show_zenity_dialog() {
+    text="$1" && shift
+    styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
+	zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$@"
+}
+
+show_zenity_info() {
+    text="$1" && shift
+    log "$text"
+	show_zenity_dialog "<b>$text</b>" --info "$@" 
+}
+
+show_zenity_error() {
+    text="$1" && shift
+    log "$text"
+    show_zenity_dialog "<b>$text</b>" --error "$@" 
+}
+
+show_zenity_question() {
+    text="$1" && shift
+    show_zenity_dialog "$text" --question "$@" 
+}
+
+show_zenity_progress() {
+    piped_pid="$1" && shift    
+    text="$1" && shift
+    tail -f /dev/null --pid "$piped_pid" | (
+        show_zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (
+            kill -9 $(list_all_children_pid "$piped_pid")
+            log "Progress PID killed: $piped_pid"
+            return 1
+        )
+    )
+}
+
+show_zenity_menu() {
+    menu_text="$1" && shift
+    cancel_button_text="$1" && shift
+    ok_button_text="$1" && shift
+    mxl_version_info_text="not installed"
+	if [ -f "$d2_dir/$mxl_version_file_name" ]; then
+        # Read installed Median XL version
+		mxl_version_info_text=$(cat "$d2_dir/$mxl_version_file_name")
+	fi
+    text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
+    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$version' • '$mxl_version_info_text'</b></span>'
+    text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
+    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
 }
 
 show_gui_update_script() {
@@ -330,15 +341,7 @@ show_gui_help() {
     zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_help_file"
 }
 
-exec_wine() {
-    check_wine_default || return 1
-    log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
-    env WINEPREFIX="$wineprefix" "$wine_default" "$@"
-}
-
-exec_wine_exe() {
-    exec_wine start /unix "$@"
-}
+# ----------------------------------------------------------------------------------------------------------------------
 
 check_wine_default() {
     if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
@@ -412,114 +415,6 @@ check_for_mxl_update() {
     log "New $mxl_title $latest_mxl_patch_version update available!" 
 }
 
-check_d2_dir() {
-    if [ ! -d "$d2_dir" ]; then
-	    show_zenity_info "Please choose Diablo II binary dir..."
-	    directory=$(zenity --file-selection --directory)
-        if [ $? = 1 ]; then
-            log "User exit"
-            return 1
-        fi
-	    if [ "$directory" = "" ]; then
-	        log "Error: directory is empty"
-	        return 1
-	    fi
-        replace_config_file_value "d2_dir" "$directory"
-        restart_script
-    fi
-}
-
-check_glide_wrapper() {
-    if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
-        if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
-            log "User canceled"
-            return 1
-        fi
-    	if [ ! -f "$glide_res_file" ]; then
-		    zenity_error "$glide_res_file not found!"
-	        return 1
-	    fi
-        (unzip -o "$glide_res_file" -d "$d2_dir") &
-        if ! show_zenity_progress $! "Installing Glide Wrapper"; then
-            show_zenity_error "Error install glide wrapper"
-            return 1
-        fi
-        show_zenity_info "Glide wrapper successfully installed"
-    fi
-}
-
-show_gui_mxl_update() {
-    check_d2_dir || return 1
-    
-    if ! check_for_mxl_update; then
-        show_zenity_info "No $mxl_title update available"
-        return 1
-    else
-        # Create tmp download dir
-        tmp_dir="/tmp/$latest_mxl_patch_prefix"
-        rm -f -r "$tmp_dir"
-        mkdir -p "$tmp_dir"
-        cd "$tmp_dir" || exit 1;
-
-        ( # Downloading
-            log " Downloading $mxl_title $latest_mxl_patch_version dlls ..."
-            curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
-            log " Downloading $mxl_title $latest_mxl_patch_version mod ..."
-            curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"   
-        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
-	        show_zenity_error "Download error"
-	        return 1
-        fi
-        
-        ( # Extracting
-            log " Extracting $mxl_title dll files ..."
-            7z e "$tmp_dir/dlls.7z" -aoa
-            rm -f "$tmp_dir/dlls.7z"
-            log " Extracting $mxl_title mod files ..."
-            7z e "$tmp_dir/mod.7z" -aoa
-            rm -f "$tmp_dir/mod.7z"
-            log " Creating $latest_mxl_patch_prefix patch ..."
-            mkdir -p "$patch_files_dir"
-            zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
-        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
-	        show_zenity_error "Download error"
-	        return 1
-        fi
-        
-        show_zenity_info "$mxl_title $latest_mxl_patch_version successfully downloaded"
-    fi
-}
-
-show_gui_mxl_patches() {
-    check_d2_dir || return 1
-
-	if [ ! -d "$patch_files_dir" ]; then
-		show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
-		return 1
-	fi
-	if [ ! -f "$d2_patch_res_file" ]; then
-		show_zenity_error "$d2_patch_res_file not found!"
-		return 1
-	fi
-
-    # List patch files
-    cd "$patch_files_dir" || exit 1;
-    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
-    patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
-
-    if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
-        (
-            unzip -o "$d2_patch_res_file" -d "$d2_dir"
-            unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_dir"
-            echo "$patch_version" > "$d2_dir/$mxl_version_file_name"
-        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
-            show_zenity_error "Error during patching $mxl_title $patch_version"
-            return 1
-        fi
-        show_zenity_info "$mxl_title $patch_version successfully patched"
-    fi
-}
-
 check_d2stats() {
     check_d2_dir || return 1
     
@@ -564,20 +459,50 @@ check_d2stats() {
     fi
 }
 
-exec_d2stats() {
-    check_wine_default || return 1
-    check_d2stats || return 1
-	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
-	# Workaround for disabling D2 Stats system tray
-	for i in 1 2 3 4 5; do
-	    sleep 1
-        win_result=$(wmctrl -l | grep "Wine System Tray")
-	    if [ "$win_result" != "" ]; then
-	        wmctrl -c 'Wine System Tray'
-	        log "Wine System Tray closed"
-            break;
+check_d2_dir() {
+    if [ ! -d "$d2_dir" ]; then
+	    show_zenity_info "Please choose Diablo II binary dir..."
+	    directory=$(zenity --file-selection --directory)
+        if [ $? = 1 ]; then
+            log "User exit"
+            return 1
         fi
-	done
+	    if [ "$directory" = "" ]; then
+	        log "Error: directory is empty"
+	        return 1
+	    fi
+        replace_config_file_value "d2_dir" "$directory"
+        restart_script
+    fi
+}
+
+check_glide_wrapper() {
+    if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
+        if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
+            log "User canceled"
+            return 1
+        fi
+    	if [ ! -f "$glide_res_file" ]; then
+		    zenity_error "$glide_res_file not found!"
+	        return 1
+	    fi
+        (unzip -o "$glide_res_file" -d "$d2_dir") &
+        if ! show_zenity_progress $! "Installing Glide Wrapper"; then
+            show_zenity_error "Error install glide wrapper"
+            return 1
+        fi
+        show_zenity_info "Glide wrapper successfully installed"
+    fi
+}
+
+exec_wine() {
+    check_wine_default || return 1
+    log "Executing:env WINEPREFIX=$wineprefix $wine_default $@"
+    env WINEPREFIX="$wineprefix" "$wine_default" "$@"
+}
+
+exec_wine_exe() {
+    exec_wine start /unix "$@"
 }
 
 exec_diablo() {
@@ -601,6 +526,22 @@ exec_diablo() {
     exit 0;
 }
 
+exec_d2stats() {
+    check_wine_default || return 1
+    check_d2stats || return 1
+	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
+	# Workaround for disabling D2 Stats system tray
+	for i in 1 2 3 4 5; do
+	    sleep 1
+        win_result=$(wmctrl -l | grep "Wine System Tray")
+	    if [ "$win_result" != "" ]; then
+	        wmctrl -c 'Wine System Tray'
+	        log "Wine System Tray closed"
+            break;
+        fi
+	done
+}
+
 exec_glide_settings() {
     check_d2_dir || return 1
     check_wine_default || return 1
@@ -622,6 +563,88 @@ exec_d2_video_settings() {
     exec_wine_exe "$d2_dir/$d2_vid_test_exe"
 }
 
+show_gui_mxl_update() {
+    check_d2_dir || return 1
+    
+    if ! check_for_mxl_update; then
+        show_zenity_info "No $mxl_title update available"
+        return 1
+    else
+        # Create tmp download dir
+        tmp_dir="/tmp/$latest_mxl_patch_prefix"
+        rm -f -r "$tmp_dir"
+        mkdir -p "$tmp_dir"
+        cd "$tmp_dir" || exit 1;
+
+        ( # Downloading
+            log " Downloading $mxl_title $latest_mxl_patch_version dlls ..."
+            curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
+            log " Downloading $mxl_title $latest_mxl_patch_version mod ..."
+            curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"   
+        ) & if ! show_zenity_progress $! "Downloading $mxl_title $latest_mxl_patch_version"; then
+	        show_zenity_error "Download error"
+	        return 1
+        fi
+        
+        ( # Extracting
+            log " Extracting $mxl_title dll files ..."
+            7z e "$tmp_dir/dlls.7z" -aoa
+            rm -f "$tmp_dir/dlls.7z"
+            log " Extracting $mxl_title mod files ..."
+            7z e "$tmp_dir/mod.7z" -aoa
+            rm -f "$tmp_dir/mod.7z"
+            log " Creating $latest_mxl_patch_prefix patch ..."
+            mkdir -p "$patch_files_dir"
+            zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
+        ) & if ! show_zenity_progress $! "Creating $mxl_title $latest_mxl_patch_version patch"; then
+	        show_zenity_error "Extracting error"
+	        return 1
+        fi
+        
+        show_zenity_info "$mxl_title $latest_mxl_patch_version patch successfully downloaded"
+    fi
+}
+
+show_gui_mxl_patches() {
+    check_d2_dir || return 1
+
+	if [ ! -d "$patch_files_dir" ]; then
+		show_zenity_error "No local $mxl_title patches found!\n\nDownload latest $mxl_title patch first."
+		return 1
+	fi
+	if [ ! -f "$d2_patch_res_file" ]; then
+		show_zenity_error "$d2_patch_res_file not found!"
+		return 1
+	fi
+
+    # List patch files
+    cd "$patch_files_dir" || exit 1;
+    patch_file_result=$( find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
+    patch_version=$(echo "$patch_file_result" | rev | cut -f 1 -d '-' | rev)
+
+    if  [ $? = 0 ] && [ "$patch_file_result" != "" ]; then
+        (
+            unzip -o "$d2_patch_res_file" -d "$d2_dir"
+            unzip -o "$patch_files_dir/$patch_file_result.zip" -d "$d2_dir"
+            echo "$patch_version" > "$d2_dir/$mxl_version_file_name"
+        ) & if ! show_zenity_progress $! "Patching $mxl_title $patch_version"; then
+            show_zenity_error "Error during patching $mxl_title $patch_version"
+            return 1
+        fi
+        show_zenity_info "$mxl_title $patch_version successfully patched"
+    fi
+}
+
+show_gui_import_savegames() {
+	file=$(zenity --file-selection --file-filter="$mxl_savegames_prefix-*.zip")
+	if [ "$file" = "" ]; then
+	    return 1
+	fi
+    mkdir -p "$mxl_savegames_dir"
+	unzip -o "$file" -d "$mxl_savegames_dir"
+	show_zenity_info "$mxl_savegames_dir successfully imported"
+}
+
 show_gui_export_savegames() {
     if [ ! -d "$mxl_savegames_dir" ]; then
 	    show_zenity_error "$mxl_savegames_dir not found"
@@ -635,16 +658,6 @@ show_gui_export_savegames() {
 	cd "$mxl_savegames_dir" || exit 1;
 	zip -r -0 "$directory/$filename" .
 	show_zenity_info "Data successfully exported: $directory/$filename"
-}
-
-show_gui_import_savegames() {
-	file=$(zenity --file-selection --file-filter="$mxl_savegames_prefix-*.zip")
-	if [ "$file" = "" ]; then
-	    return 1
-	fi
-    mkdir -p "$mxl_savegames_dir"
-	unzip -o "$file" -d "$mxl_savegames_dir"
-	show_zenity_info "$mxl_savegames_dir successfully imported"
 }
 
 show_gui_menu_settings() {
@@ -727,11 +740,14 @@ show_gui_menu_main() {
 }
 
 # Logging
-log "$script_id-$version started"
+if [ "$1" = "--restart" ]; then
+    log "$script_id-$version restarted"
+else
+    log "$script_id-$version started"
+    (check_for_update && send_notify "New $script_id update available") &
+    (check_for_mxl_update && send_notify "New $mxl_title update available") &
+fi
 log "Config: $script_config_file"
-
-(check_for_update && send_notify "New $script_id update available") &
-(check_for_mxl_update && send_notify "New $mxl_title update available") &
 
 while(true); do
 
@@ -751,7 +767,5 @@ while(true); do
 	fi
 	
 	# Show main menu
-	if ! show_gui_menu_main; then
-	    log "Warning: show_gui_menu_main returns with error"
-	fi
+	show_gui_menu_main
 done
