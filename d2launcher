@@ -285,14 +285,13 @@ show_gui_update_script() {
         return 1
     fi
 
-    version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
+    version_info_text="No update available!\n\nForce install <b>$script_id-$latest_version</b>?"
     if [ "$version" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
-    fi    
-    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
-	update_info="<b>$script_id Updater</b>\n\n$version_text"
+        version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
+    fi
     
-    if ! show_zenity_question "$update_info"; then
+    version_text="Installed version:\t$version\nRemote version:\t\t$latest_version\n\n$version_info_text"
+    if ! show_zenity_question "<big>$gui_title Updater</big>\n\n$version_text"; then
         log "User canceled"
         return 1
     fi
@@ -370,7 +369,7 @@ check_wine_default() {
             wine_version="5"
         fi
         
-        if ! show_zenity_question "Wine $wine_version AppImage is required from internet.\n\n<b>Download now?</b>"; then
+        if ! show_zenity_question "<b>Wine $wine_version</b> AppImage is required from internet.\n\nDownload now?"; then
             log "User canceled"
             return 1
         fi
@@ -413,7 +412,7 @@ check_d2stats() {
     
     # D2Stats
     if [ "$1" = "force" ] || [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
-        if ! show_zenity_question "D2Stats is required from internet.\n\n<b>Download now?</b>"; then
+        if ! show_zenity_question "<b>D2Stats</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
         (
@@ -435,7 +434,7 @@ check_d2stats() {
     
     # sigma-loader.exe
     if [ "$1" = "force" ] || [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
-        if ! show_zenity_question "$d2_sigma_loader_exe is required from internet.\n\n<b>Download now?</b>"; then
+        if ! show_zenity_question "<b>$d2_sigma_loader_exe</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
         (
@@ -472,7 +471,7 @@ check_d2_dir() {
 
 check_glide_wrapper() {
     if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
-        if ! show_zenity_question "Glide Wrapper not installed. Install now?"; then
+        if ! show_zenity_question "<b>Glide Wrapper</b> not installed.\n\nInstall now?"; then
             log "User canceled"
             return 1
         fi
@@ -748,7 +747,7 @@ if [ "$1" = "--after-restart" ]; then
     log "$script_id-$version restarted"
 else
     log "$script_id-$version started"
-    (check_for_update && send_notify "New $script_id update available") &
+    (check_for_update && send_notify "New $gui_title update available") &
     (check_for_mxl_update && send_notify "New $mxl_title update available") &
 fi
 log "Config: $script_config_file"
