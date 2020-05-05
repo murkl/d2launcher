@@ -2,20 +2,27 @@
 # https://github.com/murkl/d2launcher
 # https://developer.gnome.org/pygtk/stable/pango-markup-language.html
 
-version=3.2.0
+script_version=3.2.1
+script_title="D2Launcher"
+script_id=d2launcher
+logging_enabled=true
 
-# Update
+# GitHub update
 github_author="murkl"
 github_repo="d2launcher"
 github_tags_url="https://api.github.com/repos/$github_author/$github_repo/tags"
 update_check=true
 
-# Script
-script_title="D2Launcher"
-script_file=$(readlink -f "$0")
-script_dir=$(dirname "$script_file")
-script_id=$(basename "$script_file")
-logging_enabled=true
+# Locating script dir
+script_source="${BASH_SOURCE[0]}"
+while [ -h "$script_source" ]; do
+  script_dir="$( cd -P "$( dirname "$script_source" )" && pwd )"
+  script_source="$(readlink "$script_source")"
+  [[ $script_source != /* ]] && script_source="$script_dir/$script_source"
+done
+
+script_dir="$( cd -P "$( dirname "$script_source" )" && pwd )"
+script_file="$script_dir/$(basename "$script_source")"
 
 # Script resources
 script_config_file="$script_dir/$script_id.conf"
@@ -89,12 +96,12 @@ d2_stats_exe="D2Stats.exe"
 d2_sigma_loader_exe="sigma-loader.exe"
 
 log() {
-    styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$version: $*"
+    styled_text="$(date "+%Y-%m-%d %H:%M:%S") $script_id-$script_version: $*"
     printf '%s\n' "$styled_text"
     
     if [ "$logging_enabled" = "true" ]; then
         mkdir -p "$script_log_dir"
-        logfile="$script_log_dir/$script_id-$version.log"
+        logfile="$script_log_dir/$script_id-$script_version.log"
         touch "$logfile"
         printf '%s\n' "$styled_text" >> "$logfile"
     fi
@@ -161,7 +168,7 @@ if ! [ -x "$(command -v wmctrl)" ]; then
 fi
 
 restart_script() {
-    log "Restarting $script_id-$version..."
+    log "Restarting $script_id-$script_version..."
     ("$script_file" --after-restart) &
     exit 0;
 }
@@ -255,7 +262,7 @@ show_zenity_menu() {
 	title1=$(echo "$script_title" | awk '{print toupper($0)}')
 	title2=$(echo "$mxl_title" | awk '{print toupper($0)}')
     text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>'$title1' • '$title2'</b></span>'
-    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$version' • '$mxl_version_info_text'</b></span>'
+    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$script_version' • '$mxl_version_info_text'</b></span>'
     text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
     zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
 }
@@ -281,7 +288,7 @@ check_update_script() {
         send_notify "GitHub connection error"
         return 1
     fi
-    if [ "$version" != "$latest_version" ]; then
+    if [ "$script_version" != "$latest_version" ]; then
         log "New $script_id $latest_version update available"
     else
         log "No $script_id update available"
@@ -294,11 +301,11 @@ check_update_script() {
     if [ "$update_param" = "install" ]; then
         
         version_info_text="No update available!\n\nForce install <b>$script_id-$latest_version</b>?"
-        if [ "$version" != "$latest_version" ]; then
+        if [ "$script_version" != "$latest_version" ]; then
             version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
         fi
         
-        version_text="Installed version:\t$version\nRemote version:\t\t$latest_version\n\n$version_info_text"
+        version_text="Installed version:\t$script_version\nRemote version:\t\t$latest_version\n\n$version_info_text"
         if ! show_zenity_question "<big>$script_title Updater</big>\n\n$version_text"; then
             log "User canceled"
             return 1
@@ -748,9 +755,9 @@ show_gui_menu_main() {
 # ----------------------------------------------------------------------------------------------------------------------------------
 
 if [ "$1" = "--after-restart" ]; then
-    log "$script_id-$version restarted"
+    log "$script_id-$script_version restarted"
 else
-    log "$script_id-$version started"
+    log "$script_id-$script_version started"
     if [ "$update_check" = "true" ]; then
         (check_update_script && send_notify "New $script_title update available") &
     fi
