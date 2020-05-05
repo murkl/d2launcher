@@ -217,13 +217,13 @@ show_zenity_dialog() {
 show_zenity_info() {
     text="$1" && shift
     log "$text"
-	show_zenity_dialog "<b>$text</b>" --info "$@" 
+	show_zenity_dialog "$text" --info "$@" 
 }
 
 show_zenity_error() {
     text="$1" && shift
     log "$text"
-    show_zenity_dialog "<b>$text</b>" --error "$@" 
+    show_zenity_dialog "$text" --error "$@" 
 }
 
 show_zenity_question() {
