@@ -11,7 +11,7 @@ github_tags_url="https://api.github.com/repos/$github_author/$github_repo/tags"
 update_check=true
 
 # Script
-script_title="d2Launcher"
+script_title="D2Launcher"
 script_file=$(readlink -f "$0")
 script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
@@ -37,10 +37,12 @@ gui_dialog_color="#5D5D5D"
 gui_dialog_size="8"
 
 # Desktop file
+desktop_title="Diablo II"
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_icon_enabled=true
 
 # Wine AppImage
+wine_title="Wine"
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
 wine5_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
 wine4="$script_res_dir/wine4.AppImage"
@@ -49,30 +51,37 @@ wineprefix="$script_dir/.wineprefix"
 wine5_enabled=false
 wine_default=""
 
-# Diablo II resources
+# Diablo II patches
 patch_files_dir="$script_res_dir/patches"
-d2_patch_res_file="$script_res_dir/d2-1.13c_files.zip"
+patch_file_version_filename="$script_id-patch.version"
+
+# Diablo II core files
+d2_core_patch_res_file="$script_res_dir/d2-1.13c_files.zip"
+
+# Glide Wrapper
 glide_res_file="$script_res_dir/gl32ogl14e.zip"
+glide_title="Glide Wrapper"
+glide_exe="glide-init.exe"
 
 # Diablo II binaries
+d2_title="Diablo II"
 d2_dir=""
 d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 d2_vid_test_exe="D2VidTst.exe"
-d2_glide_exe="glide-init.exe"
 
 # Median XL
 mxl_title="Median XL"
-mxl_patch_id="$script_id-mxl"
 mxl_versions_url="http://get.median-xl.com/launcher/?get=versions"
 mxl_dlls_url="http://get.median-xl.com/launcher/?get=dlls"
 mxl_mod_url="http://get.median-xl.com/launcher/?get=mod"
-mxl_version_filename="$mxl_patch_id.version"
+mxl_id="$script_id-mxl"
 mxl_savegames_dir="$wineprefix/drive_c/users/$USER/Application Data/MedianXL"
-mxl_savegames_prefix="$mxl_patch_id-save"
+mxl_savegames_prefix="$mxl_id-save"
 mxl_update_check=true
 
 # D2 Stats
+d2_stats_title="D2Stats"
 d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 d2_stats_res_dir="$script_res_dir/d2-stats"
@@ -178,7 +187,7 @@ create_desktop_file() {
     if [ ! -f "$desktop_file" ]; then
 	    {
 	        echo "[Desktop Entry]"
-	        echo "Name=$script_title"
+	        echo "Name=$desktop_title"
 	        echo "Icon=$script_res_icon_file"
 	        echo "Exec=\"$script_file\""
 	        echo "Type=Application"
@@ -239,9 +248,9 @@ show_zenity_menu() {
     cancel_button_text="$1" && shift
     ok_button_text="$1" && shift
     mxl_version_info_text="not installed"
-	if [ -f "$d2_dir/$mxl_version_filename" ]; then
+	if [ -f "$d2_dir/$patch_file_version_filename" ]; then
         # Read installed Median XL version
-		mxl_version_info_text=$(cat "$d2_dir/$mxl_version_filename")
+        mxl_version_info_text=$(cat "$d2_dir/$patch_file_version_filename" | rev | cut -f 1 -d '-' | rev)
 	fi
 	title1=$(echo "$script_title" | awk '{print toupper($0)}')
 	title2=$(echo "$mxl_title" | awk '{print toupper($0)}')
@@ -332,7 +341,7 @@ check_wine_default() {
             wine_version="5"
         fi
         
-        if ! show_zenity_question "<b>Wine $wine_version AppImage</b> is required from internet.\n\nDownload now?"; then
+        if ! show_zenity_question "<b>$wine_title $wine_version AppImage</b> is required from internet.\n\nDownload now?"; then
             log "User canceled"
             return 1
         fi
@@ -346,8 +355,8 @@ check_wine_default() {
                 wine_url="$wine5_url"
             fi
             curl -Lk "$wine_url" -o "$tmp_file"    
-        ) & if ! show_zenity_progress $! "Downloading Wine $wine_version AppImage"; then
-            show_zenity_error "Error during download Wine $wine_version"
+        ) & if ! show_zenity_progress $! "Downloading $wine_title $wine_version AppImage"; then
+            show_zenity_error "Error during download $wine_title $wine_version"
             return 1
         fi
         
@@ -359,12 +368,12 @@ check_wine_default() {
             mv "$tmp_file" "$wine_output"
             chmod +x "$wine_output"
             
-        ) & if ! show_zenity_progress $! "Copy Wine $wine_version AppImage"; then
-            show_zenity_error "Error during copy Wine $wine_version"
+        ) & if ! show_zenity_progress $! "Copy $wine_title $wine_version AppImage"; then
+            show_zenity_error "Error during copy $wine_title $wine_version"
             return 1
         fi
         
-        show_zenity_info "Wine $wine_version successfully downloaded"
+        show_zenity_info "$wine_title $wine_version successfully downloaded"
     fi
 }
 
@@ -383,7 +392,7 @@ check_update_mxl() {
 	fi
 	
     # Check if new mxl version available
-    if [ -f "$patch_files_dir/$mxl_patch_id-$latest_mxl_patch_version.zip" ]; then
+    if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_patch_version.zip" ]; then
         log "No $mxl_title update available"
         if [ "$update_param" = "install" ]; then
             show_zenity_info "No $mxl_title update available"
@@ -397,7 +406,7 @@ check_update_mxl() {
     if [ "$update_param" = "install" ]; then
         check_d2_dir || return 1
         
-        latest_mxl_patch_prefix="$mxl_patch_id-$latest_mxl_patch_version"
+        latest_mxl_patch_prefix="$mxl_id-$latest_mxl_patch_version"
         # Create tmp download dir
         tmp_dir="/tmp/$latest_mxl_patch_prefix"
         rm -f -r "$tmp_dir"
@@ -433,27 +442,35 @@ check_update_mxl() {
     fi
 }
 
+check_patch_installation() {
+    if [ ! -f "$d2_dir/$patch_file_version_filename" ]; then
+        if ! show_zenity_question "<b>No patch installed!</b>\n\nStart $d2_title anyway?"; then
+            return 1
+        fi
+    fi
+}
+
 check_d2_dir() {
     if [ ! -d "$d2_dir" ]; then
-	    show_zenity_info "Please choose Diablo II dir..."
+	    show_zenity_info "Please choose $d2_title dir..."
 	    directory=$(zenity --file-selection --directory)
         if [ $? = 1 ]; then
             log "User exit"
             return 1
         fi
 	    if [ "$directory" = "" ]; then
-	        log "Error: directory is empty"
+	        log "Error directory is empty"
 	        return 1
 	    fi
         replace_config_file_value "d2_dir" "$directory"
-        show_zenity_info "Diablo II set to:\n\n$directory"
+        show_zenity_info "$d2_title set to:\n\n$directory"
         restart_script
     fi
 }
 
 check_d2stats() {
     if [ "$1" = "force" ] || [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
-        if ! show_zenity_question "<b>D2Stats</b> is required from internet.\n\nDownload now?"; then
+        if ! show_zenity_question "<b>$d2_stats_title</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
         (
@@ -464,12 +481,12 @@ check_d2stats() {
             curl -Lk "$d2_stats_url" -o "$rar_file"
             unrar x "$rar_file"
             rm "$rar_file"
-        ) & if ! show_zenity_progress $! "Downloading D2Stats"; then
+        ) & if ! show_zenity_progress $! "Downloading $d2_stats_title"; then
             rm -f -r "$d2_stats_res_dir"
-            show_zenity_error "Error during install D2Stats"
+            show_zenity_error "Error during install $d2_stats_title"
             return 1
         fi
-        show_zenity_info "D2 Stats successfully downloaded"
+        show_zenity_info "$d2_stats_title successfully downloaded"
     fi
     
     # sigma-loader.exe
@@ -491,8 +508,8 @@ check_d2stats() {
 }
 
 check_glide_wrapper() {
-    if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
-        if ! show_zenity_question "<b>Glide Wrapper</b> not installed.\n\nInstall now?"; then
+    if [ ! -f "$d2_dir/$glide_exe" ]; then
+        if ! show_zenity_question "<b>$glide_title</b> not installed.\n\nInstall now?"; then
             log "User canceled"
             return 1
         fi
@@ -501,11 +518,11 @@ check_glide_wrapper() {
 	        return 1
 	    fi
         (unzip -o "$glide_res_file" -d "$d2_dir") &
-        if ! show_zenity_progress $! "Installing Glide Wrapper"; then
-            show_zenity_error "Error during install Glide Wrapper"
+        if ! show_zenity_progress $! "Installing $glide_title"; then
+            show_zenity_error "Error during install $glide_title"
             return 1
         fi
-        show_zenity_info "Glide wrapper successfully installed"
+        show_zenity_info "$glide_title successfully installed"
     fi
 }
 
@@ -527,6 +544,7 @@ exec_diablo() {
     check_d2_dir || return 1
     check_glide_wrapper || return 1
     check_wine_default || return 1
+    check_patch_installation || return 1
     if pgrep -x "$d2_stats_exe" >/dev/null; then
         # If D2Stats is running do this ...
         if [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
@@ -565,11 +583,11 @@ exec_glide_settings() {
     check_d2_dir || return 1
     check_glide_wrapper || return 1
     check_wine_default || return 1
-	if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
-		show_zenity_error "$d2_dir/$d2_glide_exe not found"
+	if [ ! -f "$d2_dir/$glide_exe" ]; then
+		show_zenity_error "$d2_dir/$glide_exe not found"
 		return 1
 	fi
-    exec_wine_exe "$d2_dir/$d2_glide_exe"
+    exec_wine_exe "$d2_dir/$glide_exe"
 }
 
 exec_d2_video_settings() {
@@ -591,8 +609,8 @@ show_gui_mxl_patches() {
 		show_zenity_error "No local $mxl_title patches found.\n\nUpdate $mxl_title first!"
 		return 1
 	fi
-	if [ ! -f "$d2_patch_res_file" ]; then
-		show_zenity_error "$d2_patch_res_file not found!"
+	if [ ! -f "$d2_core_patch_res_file" ]; then
+		show_zenity_error "$d2_core_patch_res_file not found!"
 		return 1
 	fi
 
@@ -600,28 +618,23 @@ show_gui_mxl_patches() {
     cd "$patch_files_dir" || exit 1;
     patch_filename=$(find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | show_zenity_menu "$mxl_title Patches" "Back" "Patch")
 
-    if [ "$patch_filename" != "" ]; then
-    
-        patch_version=$(echo "$patch_filename" | rev | cut -f 1 -d '-' | rev)
-        
-        if [ "$patch_version" = "" ]; then
-            show_zenity_error "Error fetching version from $patch_filename"
-            return 1
-        fi
-        (
-            # Patching Diablo II core data
-            unzip -o "$d2_patch_res_file" -d "$d2_dir"
-            
-            # Patching content of patch file to Diablo II dir
-            unzip -o "$patch_files_dir/$patch_filename.zip" -d "$d2_dir"
-            echo "$patch_version" > "$d2_dir/$mxl_version_filename"
-            
-        ) & if ! show_zenity_progress $! "Patching $patch_filename"; then
-            show_zenity_error "Error during patch $patch_filename"
-            return 1
-        fi
-        show_zenity_info "$patch_filename successfully patched"
+    if [ "$patch_filename" = "" ]; then
+        log "No patch file selected"
+        return 1
     fi
+    (
+        # Patching Diablo II core data
+        unzip -o "$d2_core_patch_res_file" -d "$d2_dir"
+        
+        # Patching content of patch file to Diablo II dir
+        unzip -o "$patch_files_dir/$patch_filename.zip" -d "$d2_dir"
+        echo "$patch_filename" > "$d2_dir/$patch_file_version_filename"
+        
+    ) & if ! show_zenity_progress $! "Patching $patch_filename"; then
+        show_zenity_error "Error during patch $patch_filename"
+        return 1
+        fi
+    show_zenity_info "$patch_filename successfully patched"
 }
 
 show_gui_import_savegames() {
@@ -653,9 +666,9 @@ show_gui_export_savegames() {
 
 show_gui_menu_settings() {
 	item_01="Edit Configuration"
-	item_02="Wine Settings"
+	item_02="$wine_title Settings"
 	item_03="Glide Wrapper Settings"
-	item_04="Diablo II Video Settings"
+	item_04="$d2_title Video Settings"
 	item_05="Import $mxl_title Savegames"
 	item_06="Export $mxl_title Savegames"
     result=$(show_zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
@@ -682,8 +695,8 @@ show_gui_menu_settings() {
 show_gui_menu_update_manager() {
 	item_01="Check for $mxl_title update"
 	item_02="Check for $script_title update"
-	item_03="Force Wine update"
-	item_04="Force D2Stats update"
+	item_03="Force $wine_title update"
+	item_04="Force $d2_stats_title update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
         check_update_mxl "install"; return
@@ -700,7 +713,7 @@ show_gui_menu_update_manager() {
 }
 
 show_gui_menu_main() {
-	item_01="Diablo II"
+	item_01="$d2_title"
 	item_02="Statistics"
 	item_03="$mxl_title Patches"
 	item_04="Update Manager"
@@ -744,7 +757,7 @@ else
     fi
 fi
 
-log "Config: $script_config_file"
+log "Config used: $script_config_file"
 
 while(true); do
 
