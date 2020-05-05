@@ -385,6 +385,9 @@ check_update_mxl() {
     # Check if new mxl version available
     if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_patch_version.zip" ]; then
         log "No $mxl_title update available"
+        if [ "$update_param" = "install" ]; then
+            show_zenity_info "No $mxl_title update available"
+        fi
         return 1
     fi
     
