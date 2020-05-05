@@ -325,7 +325,7 @@ check_update_script() {
 # ----------------------------------------------------------------------------------------------------------------------------------
 
 check_wine_default() {
-    if [ "$1" != "force" ] && [ ! -f "$wine_default" ]; then
+    if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
     
         wine_version="4"
         if [ "$wine5_enabled" = "true" ]; then
@@ -359,8 +359,6 @@ check_wine_default() {
             mv "$tmp_file" "$wine_output"
             chmod +x "$wine_output"
             
-            # Refresh wineprefix
-            exec_winewineboot -u
         ) & if ! show_zenity_progress $! "Copy Wine $wine_version AppImage"; then
             show_zenity_error "Error during copy Wine $wine_version"
             return 1
@@ -432,11 +430,26 @@ check_update_mxl() {
     fi
 }
 
+check_d2_dir() {
+    if [ ! -d "$d2_dir" ]; then
+	    show_zenity_info "Please choose Diablo II binary dir..."
+	    directory=$(zenity --file-selection --directory)
+        if [ $? = 1 ]; then
+            log "User exit"
+            return 1
+        fi
+	    if [ "$directory" = "" ]; then
+	        log "Error: directory is empty"
+	        return 1
+	    fi
+        replace_config_file_value "d2_dir" "$directory"
+        show_zenity_info "Diablo II set to:\n\n$directory"
+        restart_script
+    fi
+}
+
 check_d2stats() {
-    check_d2_dir || return 1
-    
-    # D2Stats
-    if [ "$1" != "force" ] && [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
+    if [ "$1" = "force" ] || [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
         if ! show_zenity_question "<b>D2Stats</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
@@ -458,7 +471,7 @@ check_d2stats() {
     fi
     
     # sigma-loader.exe
-    if [ "$1" != "force" ] && [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
+    if [ "$1" = "force" ] || [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
         if ! show_zenity_question "<b>$d2_sigma_loader_exe</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
@@ -473,24 +486,6 @@ check_d2stats() {
             return 1
         fi
         show_zenity_info "$d2_sigma_loader_exe successfully downloaded"
-    fi
-}
-
-check_d2_dir() {
-    if [ ! -d "$d2_dir" ]; then
-	    show_zenity_info "Please choose Diablo II binary dir..."
-	    directory=$(zenity --file-selection --directory)
-        if [ $? = 1 ]; then
-            log "User exit"
-            return 1
-        fi
-	    if [ "$directory" = "" ]; then
-	        log "Error: directory is empty"
-	        return 1
-	    fi
-        replace_config_file_value "d2_dir" "$directory"
-        show_zenity_info "Diablo II set to:\n\n$directory"
-        restart_script
     fi
 }
 
@@ -529,8 +524,8 @@ exec_wine_exe() {
 
 exec_diablo() {
     check_d2_dir || return 1
-    check_wine_default || return 1
     check_glide_wrapper || return 1
+    check_wine_default || return 1
     if pgrep -x "$d2_stats_exe" >/dev/null; then
         # If D2Stats is running do this ...
         if [ ! -f "$d2_dir/$d2_sigma_loader_exe" ]; then
@@ -549,8 +544,9 @@ exec_diablo() {
 }
 
 exec_d2stats() {
-    check_wine_default || return 1
+    check_d2_dir || return 1
     check_d2stats || return 1
+    check_wine_default || return 1
 	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
 	# Workaround for disabling D2 Stats system tray
 	for i in 1 2 3 4 5; do
@@ -566,8 +562,8 @@ exec_d2stats() {
 
 exec_glide_settings() {
     check_d2_dir || return 1
-    check_wine_default || return 1
     check_glide_wrapper || return 1
+    check_wine_default || return 1
 	if [ ! -f "$d2_dir/$d2_glide_exe" ]; then
 		show_zenity_error "$d2_dir/$d2_glide_exe not found"
 		return 1
