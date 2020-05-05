@@ -39,7 +39,7 @@ gui_dialog_size="8"
 # Desktop file
 desktop_title="Diablo II"
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
-desktop_icon_enabled=true
+desktop_icon=true
 
 # Wine AppImage
 wine_title="Wine"
@@ -122,7 +122,7 @@ check_config_key "d2_args" "$d2_args"
 check_config_key "wine5_enabled" "$wine5_enabled"
 check_config_key "gui_width" "$gui_width"
 check_config_key "gui_height" "$gui_height"
-check_config_key "desktop_icon_enabled" "$desktop_icon_enabled"
+check_config_key "desktop_icon" "$desktop_icon"
 check_config_key "update_check" "$update_check"
 check_config_key "mxl_update_check" "$mxl_update_check"
 check_config_key "logging_enabled" "$logging_enabled"
@@ -633,7 +633,7 @@ show_gui_mxl_patches() {
     ) & if ! show_zenity_progress $! "Patching $patch_filename"; then
         show_zenity_error "Error during patch $patch_filename"
         return 1
-        fi
+    fi
     show_zenity_info "$patch_filename successfully patched"
 }
 
@@ -699,9 +699,11 @@ show_gui_menu_update_manager() {
 	item_04="Force $d2_stats_title update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
+        send_notify "Fetching $mxl_title Infos"
         check_update_mxl "install"; return
     fi
     if [ "$result" = "$item_02" ]; then
+        send_notify "Fetching $script_title Infos"
         check_update_script "install"; return
     fi
     if [ "$result" = "$item_03" ]; then
@@ -770,7 +772,7 @@ while(true); do
     fi
     
     # Create or remove desktop icon
-	if [ "$desktop_icon_enabled" = "true" ]; then
+	if [ "$desktop_icon" = "true" ]; then
 		create_desktop_file
 	else
 		remove_desktop_file
