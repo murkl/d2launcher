@@ -699,11 +699,11 @@ show_gui_menu_update_manager() {
 	item_04="Force $d2_stats_title update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        send_notify "Fetching $mxl_title Infos"
+        send_notify "Fetching $mxl_title infos"
         check_update_mxl "install"; return
     fi
     if [ "$result" = "$item_02" ]; then
-        send_notify "Fetching $script_title Infos"
+        send_notify "Fetching $script_title infos"
         check_update_script "install"; return
     fi
     if [ "$result" = "$item_03" ]; then
