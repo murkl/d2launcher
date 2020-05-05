@@ -461,7 +461,6 @@ check_d2stats() {
             curl -Lk "$d2_stats_url" -o "$rar_file"
             unrar x "$rar_file"
             rm "$rar_file"
-            log " D2Stats successfully downloaded"
         ) & if ! show_zenity_progress $! "Downloading D2Stats"; then
             rm -f -r "$d2_stats_res_dir"
             show_zenity_error "Error installing D2Stats"
@@ -478,7 +477,6 @@ check_d2stats() {
         (
             rm -f "$d2_dir/$d2_sigma_loader_exe"
             curl -Lk "$d2_sigma_loader_url" -o "$d2_dir/$d2_sigma_loader_exe"
-            log " $d2_sigma_loader_exe successfully downloaded"
         ) & 
         if ! show_zenity_progress $! "Downloading $d2_sigma_loader_exe"; then
             rm -f "$d2_dir/$d2_sigma_loader_exe"
