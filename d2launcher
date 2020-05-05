@@ -332,7 +332,7 @@ check_wine_default() {
             wine_version="5"
         fi
         
-        if ! show_zenity_question "<b>Wine $wine_version</b> AppImage is required from internet.\n\nDownload now?"; then
+        if ! show_zenity_question "<b>Wine $wine_version AppImage</b> is required from internet.\n\nDownload now?"; then
             log "User canceled"
             return 1
         fi
@@ -605,11 +605,11 @@ show_gui_mxl_patches() {
             unzip -o "$d2_patch_res_file" -d "$d2_dir"
             unzip -o "$patch_files_dir/$patch_file_name.zip" -d "$d2_dir"
             echo "$patch_file_name_version" > "$d2_dir/$mxl_version_file_name"
-        ) & if ! show_zenity_progress $! "Patching $patch_file_name-$patch_file_name_version"; then
-            show_zenity_error "Error during patching $patch_file_name-$patch_file_name_version"
+        ) & if ! show_zenity_progress $! "Patching $patch_file_name"; then
+            show_zenity_error "Error during patching $patch_file_name"
             return 1
         fi
-        show_zenity_info "$patch_file_name $patch_file_name_version successfully patched"
+        show_zenity_info "$patch_file_name successfully patched"
     fi
 }
 
