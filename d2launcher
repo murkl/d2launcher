@@ -107,7 +107,6 @@ check_config_key() {
 
 # MANAGE CONFIG FILE
 # ----------------------------------------------------------------------------------------------------------------------------------
-# Create new config file
 if [ ! -f "$script_config_file" ]; then
     touch "$script_config_file"
     log "$script_config_file created"
@@ -129,7 +128,7 @@ check_config_key "logging_enabled" "$logging_enabled"
 . "$script_config_file"
 
 # Clear tmp dir
-rm -f- r "$script_tmp_dir"
+rm -f -r "$script_tmp_dir"
 mkdir -p "$script_tmp_dir"
 
 # SYSTEM PROPERTIES
@@ -601,10 +600,10 @@ show_gui_update_mxl() {
     check_d2_dir || return 1
     
     tmp_dir="$script_tmp_dir/$mxl_id-update"
-    rm -f- r "$tmp_dir"
+    rm -f -r "$tmp_dir"
     mkdir -p "$tmp_dir"
     
-    latest_version_file="$script_tmp_dir/$mxl_id-latest-patch.json"
+    latest_version_file="$tmp_dir/$mxl_id-latest-patch.json"
     (curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " > "$latest_version_file") &
     if ! show_zenity_progress $! "Fetching $mxl_title version infos"; then
 	    send_notify "No connection to $mxl_title server"
@@ -623,7 +622,11 @@ show_gui_update_mxl() {
         return 1
     fi
     
-    log "New $mxl_title $latest_mxl_version update available!"
+    question_text="<big>$mxl_title Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$latest_mxl_version</b>?"
+    if ! show_zenity_question "$question_text"; then
+        log "User canceled"
+        return 1
+    fi 
         
     new_mxl_patch_prefix="$mxl_id-$latest_mxl_version"
     
