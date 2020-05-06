@@ -352,7 +352,7 @@ show_zenity_menu() {
 }
 
 show_gui_edit_configuration() {
-    if result=$(zenity --text-info --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file"); then
+    if result=$(zenity --text-info --title="Configuration" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file"); then
         echo "$result" > "$script_config_file"
         send_notify "Configuration saved"
         restart_script
@@ -360,7 +360,7 @@ show_gui_edit_configuration() {
 }
 
 show_gui_help() {
-    zenity --text-info --ok-label="Ok" --cancel-label="Back" --html --filename="$script_res_help_file"
+    zenity --text-info --title="Help" --ok-label="Ok" --cancel-label="Back" --html --filename="$script_res_help_file"
 }
 
 # CHECK FUNCTIONS
@@ -484,8 +484,8 @@ check_patch_installation() {
 
 check_d2_dir() {
     if [ ! -d "$d2_dir" ]; then
-	    show_zenity_info "Please choose $d2_title dir..."
-	    directory=$(zenity --file-selection --directory)
+	    show_zenity_info "Please choose $d2_title directory..."
+	    directory=$(zenity --file-selection --title="Choose $d2_title directory" --directory)
         if [ $? = 1 ]; then
             log "User exit"
             return 1
@@ -670,7 +670,7 @@ show_gui_mxl_patches() {
 }
 
 show_gui_import_savegames() {
-	file=$(zenity --file-selection --file-filter="$mxl_savegames_prefix-*.zip")
+	file=$(zenity --file-selection --title="Import $mxl_title Savegames" --file-filter="$mxl_savegames_prefix-*.zip")
 	if [ "$file" = "" ]; then
 	    return 1
 	fi
@@ -684,7 +684,7 @@ show_gui_export_savegames() {
 	    show_zenity_error "$mxl_savegames_dir not found"
 		return 1   
     fi
-	directory=$(zenity --file-selection --directory)
+	directory=$(zenity --file-selection --title="Export $mxl_title Savegames" --directory)
 	if [ "$directory" = "" ]; then
         return 1
 	fi
