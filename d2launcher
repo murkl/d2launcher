@@ -26,7 +26,7 @@ script_dir="$( cd -P "$( dirname "$script_source" )" && pwd )"
 script_file="$script_dir/$(basename "$script_source")"
 script_config_file="$script_dir/$script_id.conf"
 script_log_dir="$script_dir/log"
-script_tmp_dir="/tmp"
+script_tmp_dir="/tmp/$script_id"
 script_res_dir="$script_dir/res"
 script_res_icon_file="$script_res_dir/icon.svg"
 script_res_help_file="$script_res_dir/$script_id-help.html"
@@ -127,6 +127,10 @@ check_config_key "logging_enabled" "$logging_enabled"
 
 # Import config file
 . "$script_config_file"
+
+# Clear tmp dir
+rm -f- r "$script_tmp_dir"
+mkdir -p "$script_tmp_dir"
 
 # SYSTEM PROPERTIES
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -235,68 +239,22 @@ remove_desktop_file() {
 }
 
 check_update_script() {
-    update_param="$1"
-    
-    latest_version=$(curl --silent "$github_tags_url" | jq -r '.[0].name')
-    
+   latest_version=$(curl --silent "$github_tags_url" | jq -r '.[0].name')
     if [ "$latest_version" = "" ]; then
         send_notify "GitHub connection error"
         return 1
     fi
-    if [ "$script_version" != "$latest_version" ]; then
-        log "New $script_title $latest_version update available"
-    else
+    if [ "$script_version" = "$latest_version" ]; then
         log "No $script_title update available"
-        if [ "$update_param" != "install" ]; then
-            return 1
-        fi
+        return 1
     fi
-    
-    # Show update installation gui
-    if [ "$update_param" = "install" ]; then
-        
-        version_info_text="No update available!\n\nForce install <b>$script_title $latest_version</b>?"
-        if [ "$script_version" != "$latest_version" ]; then
-            version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
-        fi
-        
-        version_text="Installed version:\t$script_version\nRemote version:\t\t$latest_version\n\n$version_info_text"
-        if ! show_zenity_question "<big>$script_title Updater</big>\n\n$version_text"; then
-            log "User canceled"
-            return 1
-        fi
-        
-        tmp_dir="$script_tmp_dir/$script_id-update-tmp"
-        rm -f -r "$tmp_dir"
-        mkdir -p "$tmp_dir"
-        
-        ( # Download
-            latest_zip_url=$(curl --silent "$github_tags_url" | jq -r '.[0].zipball_url')
-            curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
-        ) & if ! show_zenity_progress $! "Downloading $script_title $latest_version"; then
-            show_zenity_error "Error during download $script_title $latest_version"
-            return 1
-        fi
-        
-        ( # Installation
-		    unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		    unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
-		    cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
-            chmod +x "$script_file"
-        ) & if ! show_zenity_progress $! "Installing $script_title $latest_version"; then
-            show_zenity_error "Error during install $script_title $latest_version"
-            return 1
-        fi
-        
-        show_zenity_info "$script_title $latest_version successfully installed"
-        restart_script
-    fi
+    log "New $script_title $latest_version update available"
 }
 
 # ZENITY
 # ----------------------------------------------------------------------------------------------------------------------------------
 zenity() {
-	/usr/bin/zenity --name="$script_id" --title="" --window-icon="$script_res_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
+	/usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_res_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2> /dev/null
 }
 
 show_zenity_dialog() {
@@ -323,7 +281,7 @@ show_zenity_question() {
 }
 
 show_zenity_progress() {
-    piped_pid="$1" && shift    
+    piped_pid="$1" && shift
     text="$1" && shift
     tail -f /dev/null --pid "$piped_pid" | (
         show_zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (
@@ -351,6 +309,61 @@ show_zenity_menu() {
     zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
 }
 
+# GUI CORE
+# ----------------------------------------------------------------------------------------------------------------------------------
+show_gui_update_script() {
+
+    tmp_dir="$script_tmp_dir/$script_id-update"
+    rm -f -r "$tmp_dir"
+    mkdir -p "$tmp_dir"
+   
+    # Fetch latest version
+    latest_version_file="$tmp_dir/latest.version"
+    (curl --silent "$github_tags_url" | jq -r '.[0].name' > "$latest_version_file") &
+    if ! show_zenity_progress $! "Fetching $script_title update infos"; then
+        show_zenity_error "Error during fetch $script_title update infos"
+        return 1
+    fi
+    latest_version=$(< "$latest_version_file")
+   
+    if [ "$latest_version" = "" ]; then
+        send_notify "Error no latest $script_name version found"
+        return 1
+    fi
+    
+    version_info_text="No update available!\n\nForce install <b>$script_title $latest_version</b>?"
+    if [ "$script_version" != "$latest_version" ]; then
+        version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
+    fi
+    
+    version_text="Installed version:\t$script_version\nRemote version:\t\t$latest_version\n\n$version_info_text"
+    if ! show_zenity_question "<big>$script_title Updater</big>\n\n$version_text"; then
+        log "User canceled"
+        return 1
+    fi  
+    
+    ( # Download
+        latest_zip_url=$(curl --silent "$github_tags_url" | jq -r '.[0].zipball_url')
+        curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
+    ) & if ! show_zenity_progress $! "Downloading $script_title $latest_version"; then
+        show_zenity_error "Error during download $script_title $latest_version"
+        return 1
+    fi
+    
+    ( # Installation
+	    unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
+	    unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+	    cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
+        chmod +x "$script_file"
+    ) & if ! show_zenity_progress $! "Installing $script_title $latest_version"; then
+        show_zenity_error "Error during install $script_title $latest_version"
+        return 1
+    fi
+    
+    show_zenity_info "$script_title $latest_version successfully installed"
+    restart_script
+}
+
 show_gui_edit_configuration() {
     if result=$(zenity --text-info --title="Configuration" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file"); then
         echo "$result" > "$script_config_file"
@@ -363,9 +376,36 @@ show_gui_help() {
     zenity --text-info --title="Help" --ok-label="Ok" --cancel-label="Back" --html --filename="$script_res_help_file"
 }
 
+# WINE
+# ----------------------------------------------------------------------------------------------------------------------------------
+exec_wine() {
+    check_wine_install || return 1
+    log "env WINEPREFIX=$wineprefix $wine_default $*"
+    env WINEPREFIX="$wineprefix" "$wine_default" "$@"
+}
+
+exec_wine_exe() {
+    exec_wine start /unix "$@"
+}
+
 # CHECK FUNCTIONS
 # ----------------------------------------------------------------------------------------------------------------------------------
-check_wine_default() {
+check_update_mxl() {
+    # Parse mxl patch infos
+    latest_mxl_version=$(curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" ")
+	if [ "$latest_mxl_version" = "" ]; then
+		send_notify "No connection to $mxl_title server"
+		return 1
+	fi
+    # Check if new mxl version available
+    if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_version.zip" ]; then
+        log "No $mxl_title update available"
+        return 1
+    fi
+    log "New $mxl_title $latest_mxl_version update available!"
+}
+
+check_wine_install() {
     if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
     
         wine_version="4"
@@ -409,98 +449,7 @@ check_wine_default() {
     fi
 }
 
-check_update_mxl() {
-    update_param="$1"
-
-    # Parse mxl patch infos
-    latest_mxl_patch_json_file="$script_tmp_dir/$mxl_id-patch.json"
-    rm -f "$latest_mxl_patch_json_file"
-    curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' > "$latest_mxl_patch_json_file"
-	latest_mxl_patch_version=$(< "$latest_mxl_patch_json_file" jq -r '.name' | cut -f3 -d" ")
-
-	if [ "$latest_mxl_patch_version" = "" ]; then
-		send_notify "No connection to $mxl_title server"
-		return 1
-	fi
-	
-    # Check if new mxl version available
-    if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_patch_version.zip" ]; then
-        log "No $mxl_title update available"
-        if [ "$update_param" = "install" ]; then
-            show_zenity_info "No $mxl_title update available"
-        fi
-        return 1
-    fi
-    
-    log "New $mxl_title $latest_mxl_patch_version update available!"
-    
-    # Show download gui
-    if [ "$update_param" = "install" ]; then
-        check_d2_dir || return 1
-        
-        latest_mxl_patch_prefix="$mxl_id-$latest_mxl_patch_version"
-        # Create tmp download dir
-        tmp_dir="$script_tmp_dir/$latest_mxl_patch_prefix"
-        rm -f -r "$tmp_dir"
-        mkdir -p "$tmp_dir"
-        cd "$tmp_dir" || exit 1;
-
-        ( # Downloading
-            log " Downloading $latest_mxl_patch_prefix dlls ..."
-            curl "$mxl_dlls_url" -o "$tmp_dir/dlls.7z"
-            log " Downloading $latest_mxl_patch_prefix mod ..."
-            curl "$mxl_mod_url" -o "$tmp_dir/mod.7z"   
-        ) & if ! show_zenity_progress $! "Downloading $latest_mxl_patch_prefix"; then
-            show_zenity_error "Error during download $latest_mxl_patch_prefix"
-            return 1
-        fi
-        
-        ( # Extracting
-            log " Extracting $latest_mxl_patch_prefix dll files ..."
-            7z e "$tmp_dir/dlls.7z" -aoa
-            rm -f "$tmp_dir/dlls.7z"
-            log " Extracting $latest_mxl_patch_prefix mod files ..."
-            7z e "$tmp_dir/mod.7z" -aoa
-            rm -f "$tmp_dir/mod.7z"
-            log " Creating $latest_mxl_patch_prefix patch ..."
-            mkdir -p "$patch_files_dir"
-            zip -r -0 "$patch_files_dir/$latest_mxl_patch_prefix.zip" .
-        ) & if ! show_zenity_progress $! "Creating $mxl_title $latest_mxl_patch_version patch"; then
-            show_zenity_error "Error during extract $latest_mxl_patch_prefix"
-            return 1
-        fi
-        
-        show_zenity_info "$mxl_title $latest_mxl_patch_version successfully downloaded"
-    fi
-}
-
-check_patch_installation() {
-    if [ ! -f "$d2_dir/$patch_file_version_filename" ]; then
-        if ! show_zenity_question "<b>No patch installed!</b>\n\nStart $d2_title anyway?"; then
-            return 1
-        fi
-    fi
-}
-
-check_d2_dir() {
-    if [ ! -d "$d2_dir" ]; then
-	    show_zenity_info "Please choose $d2_title directory..."
-	    directory=$(zenity --file-selection --title="Choose $d2_title directory" --directory)
-        if [ $? = 1 ]; then
-            log "User exit"
-            return 1
-        fi
-	    if [ "$directory" = "" ]; then
-	        log "Error directory is empty"
-	        return 1
-	    fi
-        replace_config_file_value "d2_dir" "$directory"
-        show_zenity_info "$d2_title set to:\n\n$directory"
-        restart_script
-    fi
-}
-
-check_d2stats() {
+check_d2stats_install() {
     if [ "$1" = "force" ] || [ ! -f "$d2_stats_res_dir/$d2_stats_exe" ]; then
         if ! show_zenity_question "<b>$d2_stats_title</b> is required from internet.\n\nDownload now?"; then
             return 1
@@ -539,7 +488,7 @@ check_d2stats() {
     fi
 }
 
-check_glide_wrapper() {
+check_glide_wrapper_install() {
     if [ ! -f "$d2_dir/$glide_exe" ]; then
         if ! show_zenity_question "<b>$glide_title</b> not installed.\n\nInstall now?"; then
             log "User canceled"
@@ -558,24 +507,38 @@ check_glide_wrapper() {
     fi
 }
 
-# WINE
-# ----------------------------------------------------------------------------------------------------------------------------------
-exec_wine() {
-    check_wine_default || return 1
-    log "env WINEPREFIX=$wineprefix $wine_default $*"
-    env WINEPREFIX="$wineprefix" "$wine_default" "$@"
+check_patch_installation() {
+    if [ ! -f "$d2_dir/$patch_file_version_filename" ]; then
+        if ! show_zenity_question "<b>No patch installed!</b>\n\nStart $d2_title anyway?"; then
+            return 1
+        fi
+    fi
 }
 
-exec_wine_exe() {
-    exec_wine start /unix "$@"
+check_d2_dir() {
+    if [ ! -d "$d2_dir" ]; then
+	    show_zenity_info "Please choose $d2_title directory..."
+	    directory=$(zenity --file-selection --title="Choose $d2_title directory" --directory)
+        if [ $? = 1 ]; then
+            log "User exit"
+            return 1
+        fi
+	    if [ "$directory" = "" ]; then
+	        log "Error directory is empty"
+	        return 1
+	    fi
+        replace_config_file_value "d2_dir" "$directory"
+        show_zenity_info "$d2_title set to:\n\n$directory"
+        restart_script
+    fi
 }
 
 # EXECUTION FUNCTIONS
 # ----------------------------------------------------------------------------------------------------------------------------------
-exec_diablo() {
+exec_diablo2() {
     check_d2_dir || return 1
-    check_glide_wrapper || return 1
-    check_wine_default || return 1
+    check_glide_wrapper_install || return 1
+    check_wine_install || return 1
     check_patch_installation || return 1
     if pgrep -x "$d2_stats_exe" >/dev/null; then
         # If D2Stats is running do this ...
@@ -596,8 +559,8 @@ exec_diablo() {
 
 exec_d2stats() {
     check_d2_dir || return 1
-    check_d2stats || return 1
-    check_wine_default || return 1
+    check_d2stats_install || return 1
+    check_wine_install || return 1
 	exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
 	# Workaround for disabling D2 Stats system tray (trying 10s to close the window)
 	for i in 1 2 3 4 5 6 7 8 9; do
@@ -613,8 +576,8 @@ exec_d2stats() {
 
 exec_glide_settings() {
     check_d2_dir || return 1
-    check_glide_wrapper || return 1
-    check_wine_default || return 1
+    check_glide_wrapper_install || return 1
+    check_wine_install || return 1
 	if [ ! -f "$d2_dir/$glide_exe" ]; then
 		show_zenity_error "$d2_dir/$glide_exe not found"
 		return 1
@@ -624,7 +587,7 @@ exec_glide_settings() {
 
 exec_d2_video_settings() {
     check_d2_dir || return 1
-    check_wine_default || return 1
+    check_wine_install || return 1
 	if [ ! -f "$d2_dir/$d2_vid_test_exe" ]; then
 		show_zenity_error "$d2_dir/$d2_vid_test_exe not found"
 		return 1
@@ -634,6 +597,64 @@ exec_d2_video_settings() {
 
 # GUI VIEWS
 # ----------------------------------------------------------------------------------------------------------------------------------
+show_gui_update_mxl() {
+    check_d2_dir || return 1
+    
+    tmp_dir="$script_tmp_dir/$mxl_id-update"
+    rm -f- r "$tmp_dir"
+    mkdir -p "$tmp_dir"
+    
+    latest_version_file="$script_tmp_dir/$mxl_id-latest-patch.json"
+    (curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " > "$latest_version_file") &
+    if ! show_zenity_progress $! "Fetching $mxl_title version infos"; then
+	    send_notify "No connection to $mxl_title server"
+	    return 1
+    fi
+    
+	latest_mxl_version=$(< "$latest_version_file")
+	if [ "$latest_mxl_version" = "" ]; then
+		send_notify "Error no $mxl_title version found"
+		return 1
+	fi
+	
+    # Check if new mxl version available
+    if [ -f "$patch_files_dir/$mxl_id-$latest_mxl_version.zip" ]; then
+        show_zenity_info "No $mxl_title update available"
+        return 1
+    fi
+    
+    log "New $mxl_title $latest_mxl_version update available!"
+        
+    new_mxl_patch_prefix="$mxl_id-$latest_mxl_version"
+    
+    # Create tmp download dir
+    tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
+    mkdir -p "$tmp_patch_dir"
+    cd "$tmp_patch_dir" || exit 1;
+
+    ( # Downloading
+        curl "$mxl_dlls_url" -o "$tmp_patch_dir/dlls.7z"
+        curl "$mxl_mod_url" -o "$tmp_patch_dir/mod.7z"   
+    ) & if ! show_zenity_progress $! "Downloading $new_mxl_patch_prefix"; then
+        show_zenity_error "Error during download $new_mxl_patch_prefix"
+        return 1
+    fi
+    
+    ( # Extracting
+        7z e "$tmp_patch_dir/dlls.7z" -aoa
+        rm -f "$tmp_patch_dir/dlls.7z"
+        7z e "$tmp_patch_dir/mod.7z" -aoa
+        rm -f "$tmp_patch_dir/mod.7z"
+        mkdir -p "$patch_files_dir"
+        zip -r -0 "$patch_files_dir/$new_mxl_patch_prefix.zip" .
+    ) & if ! show_zenity_progress $! "Creating $mxl_title $latest_mxl_version patch"; then
+        show_zenity_error "Error during extract $new_mxl_patch_prefix"
+        return 1
+    fi
+    
+    show_zenity_info "$mxl_title $latest_mxl_version successfully downloaded"
+}
+
 show_gui_mxl_patches() {
     check_d2_dir || return 1
 
@@ -731,18 +752,16 @@ show_gui_menu_update_manager() {
 	item_04="Force $d2_stats_title update"
     result=$(show_zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
-        send_notify "Fetching $mxl_title infos"
-        check_update_mxl "install"; return
+        show_gui_update_mxl; return
     fi
     if [ "$result" = "$item_02" ]; then
-        send_notify "Fetching $script_title infos"
-        check_update_script "install"; return
+        show_gui_update_script; return
     fi
     if [ "$result" = "$item_03" ]; then
-        check_wine_default "force"; return 
+        check_wine_install "force"; return 
     fi
     if [ "$result" = "$item_04" ]; then
-        check_d2stats "force"; return
+        check_d2stats_install "force"; return
     fi
 }
 
@@ -758,7 +777,7 @@ show_gui_menu_main() {
         exit 0;
     fi
     if [ "$result" = "$item_01" ]; then
-        exec_diablo; return
+        exec_diablo2; return
     fi
     if [ "$result" = "$item_02" ]; then
         exec_d2stats; return
