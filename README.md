@@ -48,7 +48,7 @@ sudo pacman -S zenity curl p7zip unrar jq wmctrl
 
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install zenity curl p7zip unrar jq wmctrl
+sudo apt install zenity curl p7zip-full unrar jq wmctrl
 ```
 
 ## Run the script
