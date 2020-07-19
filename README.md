@@ -24,7 +24,7 @@ Enjoy the simplicity :)
 * Configuration of every script variable
 * 100% GUI
 
-## Example Configuration
+## Example configuration
 ```
 d2_dir="$HOME/.local/apps/diablo2"
 d2_exe="Diablo II.exe"
@@ -36,6 +36,15 @@ desktop_icon=true
 update_check=true
 mxl_update_check=true
 logging_enabled=true
+```
+
+### Custom download url's
+Use this properties to override the default download url's
+```
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stats-3.11.1.rar"
+d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
+wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
+wine5_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
 ```
 
 ## Dependencies
