@@ -52,7 +52,7 @@ You will need a Diablo II installation to work! (the script will ask you for the
 
 ### Arch
 ```
-sudo pacman -S zenity curl p7zip unrar jq wmctrl fuse2
+sudo pacman -S zenity curl p7zip unrar jq wmctrl fuse2 zip
 ```
 
 ### Debian/Ubuntu/elementaryOS
