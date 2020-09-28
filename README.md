@@ -36,6 +36,7 @@ desktop_icon=true
 update_check=true
 mxl_update_check=true
 logging_enabled=true
+d2_stats_workaround=true
 ```
 
 ### Custom download url's
