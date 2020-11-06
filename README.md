@@ -26,33 +26,35 @@ Enjoy the simplicity :)
 - 100% GUI
 
 ### Using D2Stats
+
 It's nessesary to start D2Stats (Statistics) in d2launcher first, before starting Diablo II. Because d2launcher will check every start of Diablo II (using pgrep) if D2Stats is running. In this case, d2launcher starts Diablo II automatically with [sigma-loader](https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader).
 
-## Example configuration
+## Custom Configuration
+
+You can override the script properties in the configuration settings.
+
+### Change Download URL's
 
 ```
-d2_dir="$HOME/.local/apps/diablo2"
-d2_exe="Diablo II.exe"
-d2_args="-3dfx"
-wine5_enabled=true
-gui_width=465
-gui_height=365
-desktop_icon=true
-update_check=true
-mxl_update_check=true
-logging_enabled=true
-d2_stats_workaround=true
-```
-
-### Custom download url's
-
-Use this properties to override the default download url's
-
-```
+wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
+wine5_url="https://github.com/ferion11/Wine_Appimage/releases/download/v5.11/wine-staging-linux-x86-v5.11-PlayOnLinux-x86_64.AppImage"
 d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stats-3.11.1.rar"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
-wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
-wine5_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
+```
+
+### Change Theming
+
+```
+gui_width="358"
+gui_height="258"
+gui_font="UbuntuMono Nerd Font"
+gui_color="#eeeeee"
+gui_size="9"
+gui_dialog_width="280"
+gui_dialog_height="140"
+gui_dialog_font="UbuntuMono Nerd Font"
+gui_dialog_color="#aaaaaa"
+gui_dialog_size="9"
 ```
 
 ## Dependencies

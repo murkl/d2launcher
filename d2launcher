@@ -1,10 +1,10 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
 
-script_version=3.2.3
+script_version="3.2.4"
 
 script_title="D2Launcher"
-script_id=d2launcher
+script_id="d2launcher"
 
 # GitHub update
 github_author="murkl"
@@ -36,29 +36,29 @@ desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 # CONFIGURATION
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Script
-logging_enabled=true
-update_check=true
+logging_enabled="true"
+update_check="true"
 
 # Gui
-gui_width=358
-gui_height=258
+gui_width="358"
+gui_height="258"
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="8"
-gui_dialog_width=280
-gui_dialog_height=140
+gui_dialog_width="280"
+gui_dialog_height="140"
 gui_dialog_font="monospace"
 gui_dialog_color="#5D5D5D"
 gui_dialog_size="8"
 
 # Desktop file
-desktop_icon=true
+desktop_icon="true"
 desktop_title="Diablo II"
 
 # Wine AppImage
 wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
-wine5_url="https://github.com/pawitp/wine-appimage/releases/download/v5.7/wine"
-wine5_enabled=false
+wine5_url="https://github.com/ferion11/Wine_Appimage/releases/download/v5.11/wine-staging-linux-x86-v5.11-PlayOnLinux-x86_64.AppImage"
+wine5_enabled="false"
 wine_default=""
 wine_user="$USER"
 wineprefix="$script_dir/.wineprefix"
@@ -72,12 +72,12 @@ d2_args="-3dfx"
 mxl_versions_url="http://get.median-xl.com/launcher/?get=versions"
 mxl_dlls_url="http://get.median-xl.com/launcher/?get=dlls"
 mxl_mod_url="http://get.median-xl.com/launcher/?get=mod"
-mxl_update_check=true
+mxl_update_check="true"
 
 # D2 Stats
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.0/D2Stats-3.11.0.rar"
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stats-3.11.1.rar"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
-d2_stats_workaround=true
+d2_stats_tray="false"
 
 # CORE FUNCTIONS
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -131,6 +131,7 @@ check_config_key "desktop_icon" "$desktop_icon"
 check_config_key "update_check" "$update_check"
 check_config_key "mxl_update_check" "$mxl_update_check"
 check_config_key "logging_enabled" "$logging_enabled"
+check_config_key "d2_stats_tray" "$d2_stats_tray"
 
 # Import config file
 . "$script_config_file"
@@ -575,8 +576,8 @@ exec_d2stats() {
     check_wine_install || return 1
     exec_wine_exe "$d2_stats_res_dir/$d2_stats_exe"
     # Workaround for disabling D2 Stats system tray (trying 10s to close the window)
-    if [ -x "$(command -v wmctrl)" ] && [ "$d2_stats_workaround" = "true" ]; then
-        log "$d2_stats_title workaround starts..."
+    if [ -x "$(command -v wmctrl)" ] && [ "$d2_stats_tray" = "false" ]; then
+        log "Try closing $d2_stats_title system tray..."
         for i in 1 2 3 4 5 6 7 8 9; do
             sleep 1
             win_result=$(wmctrl -l | grep "Wine System Tray")
@@ -586,7 +587,6 @@ exec_d2stats() {
                 break
             fi
         done
-        log "$d2_stats_title workaround finished"
     fi
 }
 
