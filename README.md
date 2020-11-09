@@ -57,6 +57,12 @@ gui_dialog_color="#aaaaaa"
 gui_dialog_size="9"
 ```
 
+### Use custom Wine version
+
+```
+default_wine="/path/to/your/custom/wine"
+```
+
 ## Dependencies
 
 You will need a Diablo II installation to work! (the script will ask you for the location)
@@ -71,6 +77,12 @@ sudo pacman -S zenity curl p7zip unrar jq wmctrl fuse2 zip
 
 ```
 sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2
+```
+
+### Pop_OS!
+
+```
+sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify
 ```
 
 ## Run the script
