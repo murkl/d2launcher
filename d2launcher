@@ -262,7 +262,7 @@ check_update_script() {
 # ZENITY
 # ----------------------------------------------------------------------------------------------------------------------------------
 zenity() {
-    /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_res_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
+    /usr/bin/zenity --name="$script_id" --title="" --window-icon="$script_res_icon_file" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
 }
 
 show_zenity_dialog() {
