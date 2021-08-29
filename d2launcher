@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
 
-script_version="3.2.4"
+script_version="3.5.0"
 
 script_title="D2Launcher"
 script_id="d2launcher"
@@ -55,12 +55,12 @@ gui_dialog_size="8"
 desktop_icon="true"
 desktop_title="Diablo II"
 
-# Wine AppImage
-wine4_url="https://github.com/ferion11/Wine_Appimage/releases/download/v4.21/wine-staging-linux-x86-v4.21-PlayOnLinux-x86_64.AppImage"
-wine5_url="https://github.com/ferion11/Wine_Appimage/releases/download/v5.11/wine-staging-linux-x86-v5.11-PlayOnLinux-x86_64.AppImage"
-wine5_enabled="false"
-wine_default=""
-wine_user="$USER"
+# Wine
+wine_title="Proton 6.16 (64 Bit)"
+wine_default="$script_res_dir/wine64/bin/wine"
+wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.16/wine-6.16-staging-amd64.tar.xz"
+#wine_user="$USER"
+wine_user="steamuser"
 wineprefix="$script_dir/.wineprefix"
 
 # Diablo II
@@ -124,7 +124,6 @@ fi
 check_config_key "d2_dir" "$d2_dir"
 check_config_key "d2_exe" "$d2_exe"
 check_config_key "d2_args" "$d2_args"
-check_config_key "wine5_enabled" "$wine5_enabled"
 check_config_key "gui_width" "$gui_width"
 check_config_key "gui_height" "$gui_height"
 check_config_key "desktop_icon" "$desktop_icon"
@@ -145,11 +144,6 @@ mkdir -p "$script_tmp_dir"
 # Patches
 patch_files_dir="$script_download_dir/patches"
 patch_file_version_filename="$script_id-patch.version"
-
-# Wine
-wine_title="Wine"
-wine4="$script_download_dir/wine4.AppImage"
-wine5="$script_download_dir/wine5.AppImage"
 
 # Median XL
 mxl_title="Median XL"
@@ -197,6 +191,10 @@ if ! [ -x "$(command -v jq)" ]; then
 fi
 if ! [ -x "$(command -v zip)" ]; then
     send_notify "zip not installed"
+    exit 1
+fi
+if ! [ -x "$(command -v wine)" ]; then
+    send_notify "wine not installed"
     exit 1
 fi
 
@@ -418,46 +416,34 @@ check_update_mxl() {
 check_wine_install() {
     if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
 
-        wine_version="4"
-        if [ "$wine5_enabled" = "true" ]; then
-            wine_version="5"
-        fi
-
-        if ! show_zenity_question "<b>$wine_title $wine_version AppImage</b> is required from internet.\n\nDownload now?"; then
+        if ! show_zenity_question "<b>$wine_title</b> is required from internet.\n\nDownload now?"; then
             log "User canceled"
             return 1
         fi
 
-        tmp_file="$script_tmp_dir/wine.tmp"
+        tmp_file="$script_tmp_dir/wine64.tar.xz"
         rm -f "$tmp_file"
 
         (# Download
-            wine_url="$wine4_url"
-            if [ "$wine5_enabled" = "true" ]; then
-                wine_url="$wine5_url"
-            fi
-            curl -Lk "$wine_url" -o "$tmp_file"
+            curl -Lk "$wine_native_url" -o "$tmp_file"
         ) &
-        if ! show_zenity_progress $! "Downloading $wine_title $wine_version AppImage"; then
-            show_zenity_error "Error during download $wine_title $wine_version"
+        if ! show_zenity_progress $! "Downloading $wine_title"; then
+            show_zenity_error "Error during download $wine_title"
             return 1
         fi
 
         (# Installation
-            wine_output="$wine4"
-            if [ "$wine5_enabled" = "true" ]; then
-                wine_output="$wine5"
-            fi
-            mv "$tmp_file" "$wine_output"
-            chmod +x "$wine_output"
-
+            wine_output="$script_res_dir/wine64"
+            cd "$script_tmp_dir" || return 1
+            tar -xf "$tmp_file"
+            mv "$script_tmp_dir/wine-"* "$wine_output"
         ) &
-        if ! show_zenity_progress $! "Copy $wine_title $wine_version AppImage"; then
-            show_zenity_error "Error during copy $wine_title $wine_version"
+        if ! show_zenity_progress $! "Install $wine_title"; then
+            show_zenity_error "Error during copy $wine_title"
             return 1
         fi
 
-        show_zenity_info "$wine_title $wine_version successfully downloaded"
+        show_zenity_info "$wine_title successfully installed"
     fi
 }
 
@@ -742,7 +728,7 @@ show_gui_export_savegames() {
 # ----------------------------------------------------------------------------------------------------------------------------------
 show_gui_menu_settings() {
     item_01="Edit Configuration"
-    item_02="$wine_title Settings"
+    item_02="Wine Settings"
     item_03="$glide_title Settings"
     item_04="$d2_title Video Settings"
     item_05="Import $mxl_title Savegames"
@@ -855,14 +841,6 @@ log "Config used: $script_config_file"
 while (true); do
 
     cd "$script_dir" || exit 1
-
-    # Set wine default (if not set in config file)
-    if [ "$wine_default" = "" ]; then
-        wine_default="$wine4"
-        if [ "$wine5_enabled" = "true" ]; then
-            wine_default="$wine5"
-        fi
-    fi
 
     # Create or remove desktop icon
     if [ "$desktop_icon" = "true" ]; then
