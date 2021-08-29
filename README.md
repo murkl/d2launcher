@@ -60,7 +60,7 @@ gui_dialog_size="9"
 ### Use custom Wine version
 
 ```
-default_wine="/path/to/your/custom/wine"
+wine_default="/path/to/your/custom/wine"
 ```
 
 ## Dependencies
@@ -70,19 +70,19 @@ You will need a Diablo II installation to work! (the script will ask you for the
 ### Arch
 
 ```
-sudo pacman -S zenity curl p7zip unrar jq wmctrl fuse2 zip
+sudo pacman -S zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
 ```
 
 ### Debian/Ubuntu/elementaryOS
 
 ```
-sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2
+sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3
 ```
 
 ### Pop_OS!
 
 ```
-sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify
+sudo apt install zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify xdelta3
 ```
 
 ## Run the script

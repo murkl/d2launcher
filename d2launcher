@@ -40,8 +40,8 @@ logging_enabled="true"
 update_check="true"
 
 # Gui
-gui_width="358"
-gui_height="258"
+gui_width="360"
+gui_height="280"
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="8"
@@ -653,8 +653,8 @@ show_gui_update_mxl() {
     cd "$tmp_patch_dir" || exit 1
 
     (# Downloading
-        curl "$mxl_dlls_url" -o "$tmp_patch_dir/dlls.7z"
-        curl "$mxl_mod_url" -o "$tmp_patch_dir/mod.7z"
+        curl -L "$mxl_dlls_url" -o "$tmp_patch_dir/dlls.7z"
+        curl -L "$mxl_mod_url" -o "$tmp_patch_dir/mod.7z"
     ) &
     if ! show_zenity_progress $! "Downloading $new_mxl_patch_prefix"; then
         show_zenity_error "Error during download $new_mxl_patch_prefix"
@@ -853,6 +853,8 @@ log "Config used: $script_config_file"
 # MAIN
 # ----------------------------------------------------------------------------------------------------------------------------------
 while (true); do
+
+    cd "$script_dir" || exit 1
 
     # Set wine default (if not set in config file)
     if [ "$wine_default" = "" ]; then
