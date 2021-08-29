@@ -59,11 +59,11 @@ sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify x
 
 It's nessesary to start D2Stats (Statistics) in d2launcher first, before starting Diablo II. Because d2launcher will check every start of Diablo II (using pgrep) if D2Stats is running. In this case, d2launcher starts Diablo II automatically with [sigma-loader](https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader).
 
-## Custom Configuration
+### Custom Configuration
 
 You can override the script properties in the configuration settings.
 
-### Change Download URL's
+#### Change Download URL's
 
 ```
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.16/wine-6.16-staging-amd64.tar.xz"
@@ -71,7 +71,7 @@ d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stat
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 ```
 
-### Change Theming
+#### Change Theming
 
 ```
 gui_width="360"
@@ -86,7 +86,7 @@ gui_dialog_color="#aaaaaa"
 gui_dialog_size="9"
 ```
 
-### Use custom Wine version
+#### Use custom Wine version
 
 ```
 wine_default="/path/to/your/custom/wine"
