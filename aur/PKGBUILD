@@ -1,0 +1,15 @@
+pkgname=d2launcher
+pkgver=3.5.0
+pkgrel=1
+pkgdesc="Launcher for D2, Median XL, and D2 Stats"
+arch=('any')
+url="https://github.com/murkl/d2launcher"
+license=('unknown')
+depends=(wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3)
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/murkl/d2launcher/archive/refs/tags/${pkgver}.tar.gz")
+sha256sums=('0753b6edbae8c742914575f60b0bcbed5405f0d2feb36ffbd7c2720e5e3a7208')
+
+package() {
+	cd "${srcdir}/${pkgname}-${pkgver}"
+    install -D d2launcher "$pkgdir/usr/bin/d2launcher"
+}

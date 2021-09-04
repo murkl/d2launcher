@@ -34,6 +34,14 @@ You will need a Diablo II installation to work! (the script will ask you for the
 sudo pacman -S wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
 ```
 
+Or install from PKGBUILD for archlinux users (using makepkg)
+
+```
+git clone https://github.com/murkl/d2launcher.git
+cd aur
+makepkg -si
+```
+
 ### Debian/Ubuntu/elementaryOS
 
 ```
