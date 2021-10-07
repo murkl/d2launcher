@@ -1,8 +1,7 @@
-
 <div align="center">
   <h1>Diablo II • Median XL Launcher</h1>
   <p><b>The userfriendly Mod Launcher</b></p>
-  <div><a style="font-size: 24pt;" href="https://github.com/murkl/d2launcher/releases/latest">Download</a></div>
+  <div><a href="https://github.com/murkl/d2launcher/releases/latest"><b>Download</b></a></div>
   <div><img src="https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png" /></div>
   <p><img src="https://img.shields.io/badge/MAINTAINED-YES-green?style=for-the-badge" /></p>
 </div>
