@@ -1,18 +1,10 @@
-<h1 align="center">Diablo II • Median XL Launcher</h1>
 
 <div align="center">
-
-  <h2><a href="https://github.com/murkl/d2launcher/releases/latest">Download</a></h2>
-
-  <p>
-  <img src="https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png">
-  </p>
-
+  <h1>Diablo II • Median XL Launcher</h1>
   <p><b>The userfriendly Mod Launcher</b></p>
-  <p>
-    <img src="https://img.shields.io/badge/MAINTAINED-YES-green?style=for-the-badge">
-  </p>
-
+  <div><a style="font-size: 24pt;" href="https://github.com/murkl/d2launcher/releases/latest">Download</a></div>
+  <div><img src="https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png" /></div>
+  <p><img src="https://img.shields.io/badge/MAINTAINED-YES-green?style=for-the-badge" /></p>
 </div>
 
 # Features
