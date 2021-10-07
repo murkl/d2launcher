@@ -56,9 +56,9 @@ desktop_icon="true"
 desktop_title="Diablo II"
 
 # Wine
-wine_title="Proton 6.16 (64 Bit)"
+wine_title="Proton (64 Bit)"
 wine_default="$script_res_dir/wine64/bin/wine"
-wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.16/wine-6.16-staging-amd64.tar.xz"
+wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
 #wine_user="$USER"
 wine_user="steamuser"
 wineprefix="$script_dir/.wineprefix"
