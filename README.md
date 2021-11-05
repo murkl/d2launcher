@@ -56,9 +56,11 @@ You can override the script properties in the configuration settings.
 
 ```
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stats-3.11.1.rar"
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.4/D2Stats-3.11.4.rar"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 ```
+
+**Note:** If you change the URLs, you have to force the regarding update in d2launcher (Update Manger --> Force Proton Update/Force D2Stats Update)
 
 ### Change Theming
 
