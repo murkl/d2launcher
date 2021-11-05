@@ -75,7 +75,7 @@ mxl_mod_url="http://get.median-xl.com/launcher/?get=mod"
 mxl_update_check="true"
 
 # D2 Stats
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.1/D2Stats-3.11.1.rar"
+d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.4/D2Stats-3.11.4.rar"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 d2_stats_tray="false"
 
