@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/murkl/d2launcher
 
-script_version="3.5.2"
+script_version="3.5.3"
 
 script_title="D2Launcher"
 script_id="d2launcher"
