@@ -414,6 +414,10 @@ check_update_mxl() {
 }
 
 check_wine_install() {
+
+    # Prevent "Generic bad character" error when creating a new character
+    mkdir -p "$mxl_savegames_dir/save"
+
     if [ "$1" = "force" ] || [ ! -f "$wine_default" ]; then
 
         if ! show_zenity_question "<b>$wine_title</b> is required from internet.\n\nDownload now?"; then
