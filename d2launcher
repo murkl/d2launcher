@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # https://github.com/murkl/d2launcher
 
-script_version="3.5.4"
+script_version="3.5.5"
 
 script_title="D2Launcher"
 script_id="d2launcher"
@@ -26,7 +26,7 @@ script_dir="$(cd -P "$(dirname "$script_source")" && pwd)"
 script_file="$script_dir/$(basename "$script_source")"
 script_config_file="$script_dir/$script_id.conf"
 script_log_dir="$script_dir/log"
-script_tmp_dir="/tmp/$script_id"
+script_tmp_dir="$HOME/.cache/$script_id"
 script_res_dir="$script_dir/res"
 script_res_icon_file="$script_res_dir/icon.svg"
 script_res_help_file="$script_res_dir/$script_id-help.html"
@@ -418,7 +418,18 @@ check_wine_install() {
     # Prevent "Generic bad character" error when creating a new character
     mkdir -p "$mxl_savegames_dir/save"
 
-    if [ "$1" = "force" ] || ! [ -x "$wine_internal" ]; then
+    # Check custom wine version
+    if [ "$wine_default" != "$wine_internal" ]; then
+        if [ -x "$(command -v $wine_default)" ]; then
+            return 0
+        else
+            send_notify "Wine not found. Check your 'wine_default' property!"
+            return 1
+        fi
+    fi
+
+    # Check internal wine version
+    if [ "$1" = "force" ] || ! [ -x "$(command -v $wine_internal)" ]; then
 
         if ! show_zenity_question "<b>$wine_title</b> is required from internet.\n\nDownload now?"; then
             log "User canceled"
