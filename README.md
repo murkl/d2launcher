@@ -27,6 +27,7 @@ You will need a Diablo II installation to work! (the script will ask you for the
 
 ```
 # Arch
+# On graphic issues install aur package: lutris-wine-meta
 sudo pacman -S wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
 
 # Debian/Ubuntu/elementaryOS
@@ -82,4 +83,5 @@ gui_dialog_size="9"
 ```
 wine_default="/path/to/your/custom/wine"
 wineprefix="$HOME/my/custom/wine_prefix"
+wine_user="steamuser" # Proton: "steamuser" | Wine: "$USER"
 ```
