@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # https://github.com/murkl/d2launcher
 
-script_version="3.5.5"
+script_version="3.5.6"
 
 script_title="D2Launcher"
 script_id="d2launcher"
@@ -245,7 +245,7 @@ remove_desktop_file() {
 }
 
 check_update_script() {
-    latest_version=$(curl --silent "$github_tags_url" | jq -r '.[0].name')
+    latest_version=$(curl -sL "$github_tags_url" | jq -r '.[0].name')
     if [ "$latest_version" = "" ]; then
         send_notify "GitHub connection error"
         return 1
@@ -325,7 +325,7 @@ show_gui_update_script() {
 
     # Fetch latest version
     latest_version_file="$tmp_dir/latest.version"
-    (curl --silent "$github_tags_url" | jq -r '.[0].name' >"$latest_version_file") &
+    (curl -sL "$github_tags_url" | jq -r '.[0].name' >"$latest_version_file") &
     if ! show_zenity_progress $! "Fetching $script_title update infos"; then
         show_zenity_error "Error during fetch $script_title update infos"
         return 1
@@ -349,7 +349,7 @@ show_gui_update_script() {
     fi
 
     (# Download
-        latest_zip_url=$(curl --silent "$github_tags_url" | jq -r '.[0].zipball_url')
+        latest_zip_url=$(curl -sL "$github_tags_url" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
     ) &
     if ! show_zenity_progress $! "Downloading $script_title $latest_version"; then
@@ -400,7 +400,7 @@ exec_wine_exe() {
 # ----------------------------------------------------------------------------------------------------------------------------------
 check_update_mxl() {
     # Parse mxl patch infos
-    latest_mxl_version=$(curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" ")
+    latest_mxl_version=$(curl -sL "$mxl_versions_url" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" ")
     if [ "$latest_mxl_version" = "" ]; then
         send_notify "No connection to $mxl_title server"
         return 1
@@ -625,7 +625,7 @@ show_gui_update_mxl() {
     mkdir -p "$tmp_dir"
 
     latest_version_file="$tmp_dir/$mxl_id-latest-patch.json"
-    (curl "$mxl_versions_url" -s | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " >"$latest_version_file") &
+    (curl -sL "$mxl_versions_url" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " >"$latest_version_file") &
     if ! show_zenity_progress $! "Fetching $mxl_title version infos"; then
         send_notify "No connection to $mxl_title server"
         return 1
