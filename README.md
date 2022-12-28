@@ -28,7 +28,7 @@ You will need a Diablo II installation to work! (the script will ask you for the
 ```
 # Arch
 # On graphic issues install aur package: lutris-wine-meta
-sudo pacman -S wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
+sudo pacman -S wine-staging zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
 
 # Debian/Ubuntu/elementaryOS
 sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3
