@@ -333,7 +333,7 @@ show_gui_update_script() {
     latest_version=$(<"$latest_version_file")
 
     if [ "$latest_version" = "" ]; then
-        send_notify "Error no latest $script_name version found"
+        send_notify "Error no latest $script_title version found"
         return 1
     fi
 
@@ -420,7 +420,7 @@ check_wine_install() {
 
     # Check custom wine version
     if [ "$wine_default" != "$wine_internal" ]; then
-        if [ -x "$(command -v $wine_default)" ]; then
+        if [ -x "$(command -v "$wine_default")" ]; then
             return 0
         else
             send_notify "Wine not found. Check your 'wine_default' property!"
@@ -429,7 +429,7 @@ check_wine_install() {
     fi
 
     # Check internal wine version
-    if [ "$1" = "force" ] || ! [ -x "$(command -v $wine_internal)" ]; then
+    if [ "$1" = "force" ] || ! [ -x "$(command -v "$wine_internal")" ]; then
 
         if ! show_zenity_question "<b>$wine_title</b> is required from internet.\n\nDownload now?"; then
             log "User canceled"
@@ -454,7 +454,7 @@ check_wine_install() {
             cd "$script_tmp_dir/wine64/wine-"* || return 1
             rm -rf "$script_res_dir/wine64"
             mkdir -p "$script_res_dir/wine64"
-            mv * "$script_res_dir/wine64"
+            mv ./* "$script_res_dir/wine64"
         ) &
         if ! show_zenity_progress $! "Install $wine_title"; then
             show_zenity_error "Error during copy $wine_title"
