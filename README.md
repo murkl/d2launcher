@@ -1,6 +1,5 @@
 <div align="center">
-  <h1>Diablo II • Median XL Launcher</h1>
-  <p><b>The userfriendly Mod Launcher</b></p>
+  <h1>Diablo II • Median XL • Launcher</h1>
   <div><a href="https://github.com/murkl/d2launcher/releases/latest"><b>Download</b></a></div>
   <div><img src="https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshot.png" /></div>
   <p><img src="https://img.shields.io/badge/MAINTAINED-YES-green?style=for-the-badge" /></p>
@@ -19,39 +18,36 @@
 - Configuration of Script Properties
 - 100% GUI
 
-# Dependencies
+# Installation
 
 You will need a Diablo II installation to work! (the script will ask you for the location)
 
-```
-# Arch
-# On graphic issues install aur package: lutris-wine-meta
-sudo pacman -S wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
+## Arch Linux
 
-# Debian/Ubuntu/elementaryOS
-sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3
+- Install from AUR
+  - `aur/d2launcher`
 
-# Pop_OS!
-sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify xdelta3
-```
+## Debian/Ubuntu/elementaryOS
 
-# Run
+- Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
+- Install Dependencies
+  - `sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3`
+- Run
+  - `./d2launcher`
 
-```
-./d2launcher
-```
+## Pop_OS!
+
+- Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
+- Install Dependencies
+  - `sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify xdelta3`
+- Run
+  - `./d2launcher`
 
 # Documentation
 
-## Using D2Stats
+You can override the script properties in the configuration settings. All files are located here: `~/.d2launcher`
 
-It's nessesary to start D2Stats (Statistics) in d2launcher first, before starting Diablo II. Because d2launcher will check every start of Diablo II (using pgrep) if D2Stats is running. In this case, d2launcher starts Diablo II automatically with [sigma-loader](https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader).
-
-## Custom Configuration
-
-You can override the script properties in the configuration settings.
-
-### Change Download URL's
+## Change Download URL's
 
 ```
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
@@ -61,7 +57,17 @@ d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-l
 
 **Note:** If you change the URLs, you have to force the regarding update in d2launcher (Update Manger --> Force Proton Update/Force D2Stats Update)
 
-### Change Theming
+## Custom Wine Version
+
+If you use Wine you have to set `wine_user="$USER"` otherwise for Proton set to `wine_user="steamuser"`
+
+```
+wine_default="/path/to/your/custom/wine"
+wineprefix="$HOME/my/custom/wine_prefix"
+wine_user="steamuser"
+```
+
+## Theming
 
 ```
 gui_width="360"
@@ -76,10 +82,6 @@ gui_dialog_color="#aaaaaa"
 gui_dialog_size="9"
 ```
 
-### Use custom Wine version
+## Using D2Stats
 
-```
-wine_default="/path/to/your/custom/wine"
-wineprefix="$HOME/my/custom/wine_prefix"
-wine_user="steamuser" # Proton: "steamuser" | Wine: "$USER"
-```
+It's nessesary to start D2Stats (Statistics) in d2launcher first, before starting Diablo II. Because d2launcher will check every start of Diablo II (using pgrep) if D2Stats is running. In this case, d2launcher starts Diablo II automatically with [sigma-loader](https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader).
