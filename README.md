@@ -8,17 +8,15 @@
 
 # Features
 
-- Custom proton (64 Bit) build will download by script
-- Sandbox architecture
-- Leightweight
+- Custom Proton (64 Bit) build will download by script
 - Download latest Median XL patch (incl. notification on new updates)
-- Median XL version management
+- Median XL Version Management
 - Import/Export of savegames
 - D2 Stats included (will download by script)
 - Sven's Glide wrapper included
 - Diablo II 1.13c files to work with Median XL included
 - Updater (incl. notification on new updates)
-- Configuration of every script variable
+- Configuration of Script Properties
 - 100% GUI
 
 # Dependencies
@@ -28,7 +26,7 @@ You will need a Diablo II installation to work! (the script will ask you for the
 ```
 # Arch
 # On graphic issues install aur package: lutris-wine-meta
-sudo pacman -S wine-staging zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
+sudo pacman -S wine zenity curl p7zip unrar jq wmctrl fuse2 zip xdelta3
 
 # Debian/Ubuntu/elementaryOS
 sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3
