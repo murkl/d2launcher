@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
-SCRIPT_VERSION="3.6.0"
+
+SCRIPT_VERSION="3.6.1"
+
+# /////////////////////////////////////////////////////
+# LOCATE SCRIPT WORKING DIR
+# /////////////////////////////////////////////////////
+
+WORKING_SOURCE=${BASH_SOURCE[0]}
+while [ -L "$WORKING_SOURCE" ]; do
+    WORKING_DIR=$(cd -P "$(dirname "$WORKING_SOURCE")" >/dev/null 2>&1 && pwd)
+    WORKING_SOURCE=$(readlink "$WORKING_SOURCE")
+    [[ $WORKING_SOURCE != /* ]] && WORKING_SOURCE=$WORKING_DIR/$WORKING_SOURCE
+done
+WORKING_DIR=$(cd -P "$(dirname "$WORKING_SOURCE")" >/dev/null 2>&1 && pwd)
+
+# /////////////////////////////////////////////////////
+# CHECK SCRIPT INSTALLATION
+# /////////////////////////////////////////////////////
+
+SCRIPT_INSTALLED='false' && if [ "$WORKING_DIR" = "/opt/d2launcher" ]; then SCRIPT_INSTALLED='true'; fi
 
 # /////////////////////////////////////////////////////
 # VARIABLES
@@ -11,7 +30,6 @@ GITHUB_REPO="d2launcher"
 GITHUB_TAGS_URL="https://api.github.com/repos/${GITHUB_AUTHOR}/${GITHUB_REPO}/tags"
 
 # Script
-WORKING_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
 SCRIPT_FILE="$WORKING_DIR/$(basename "$0")"
 SCRIPT_RES_DIR="$WORKING_DIR/res"
 SCRIPT_HOME="$HOME/.d2launcher"
@@ -22,7 +40,6 @@ SCRIPT_LOG="$SCRIPT_HOME/d2launcher.log"
 SCRIPT_TEMP_DIR="$HOME/.cache/d2launcher"
 SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
 SCRIPT_HELP_FILE="$SCRIPT_RES_DIR/help.html"
-DESKTOP_FILE="$HOME/.local/share/applications/d2launcher.desktop"
 
 # Wine
 WINE_BIN_DIR="$SCRIPT_BIN_DIR/wine"
@@ -72,7 +89,6 @@ d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 
 # Script
-desktop_icon="true"
 update_check="true"
 mxl_update_check="true"
 d2_stats_tray="true"
@@ -156,7 +172,6 @@ main() {
     config_check_property "d2_args" "$d2_args"
     config_check_property "gui_width" "$gui_width"
     config_check_property "gui_height" "$gui_height"
-    config_check_property "desktop_icon" "$desktop_icon"
     config_check_property "update_check" "$update_check"
     config_check_property "mxl_update_check" "$mxl_update_check"
     config_check_property "d2_stats_tray" "$d2_stats_tray"
@@ -178,17 +193,20 @@ main() {
 
         cd "$WORKING_DIR" || exit 1
 
-        # Create or remove desktop icon
-        if [ "$desktop_icon" = "true" ]; then
+        # Handle Desktop Files
+        user_desktop_file="$HOME/.local/share/applications/d2launcher.desktop"
+        if [ -f /usr/share/applications/d2launcher.desktop ]; then
+            # If installed systemwide remove users desktop file
+            if [ -f "$user_desktop_file" ]; then rm -f "$user_desktop_file"; fi
+        else
+            # If d2launcher not installed create user desktop file
             {
                 echo "[Desktop Entry]"
                 echo "Name=Diablo II"
                 echo "Icon=$SCRIPT_ICON_FILE"
                 echo "Exec=\"$SCRIPT_FILE\""
                 echo "Type=Application"
-            } >"$DESKTOP_FILE"
-        else
-            rm -f "$DESKTOP_FILE"
+            } >"$user_desktop_file"
         fi
 
         # Show main menu
@@ -316,6 +334,11 @@ show_gui_update_script() {
 
     if [ "$latest_version" = "" ]; then
         send_notify "Error no latest D2Launcher version found"
+        return 1
+    fi
+
+    if [ "$SCRIPT_INSTALLED" = "true" ]; then
+        zenity_info "<big>D2Launcher Updater</big>\n\nInstalled version:\t$SCRIPT_VERSION\nRemote version:\t\t$latest_version\n\n<b>Please Update via System Package Manager!</b>"
         return 1
     fi
 
