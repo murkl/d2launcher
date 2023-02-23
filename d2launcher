@@ -18,7 +18,7 @@ WORKING_DIR=$(cd -P "$(dirname "$WORKING_SOURCE")" >/dev/null 2>&1 && pwd)
 # CHECK SCRIPT INSTALLATION
 # /////////////////////////////////////////////////////
 
-SCRIPT_INSTALLED='false' && if [ "$WORKING_DIR" = "/opt/d2launcher" ]; then SCRIPT_INSTALLED='true'; fi
+SCRIPT_INSTALLED='false' && pacman -Q --info d2launcher &>/dev/null && SCRIPT_INSTALLED='true'
 
 # /////////////////////////////////////////////////////
 # VARIABLES
@@ -39,7 +39,7 @@ SCRIPT_CONFIG="$SCRIPT_HOME/d2launcher.conf"
 SCRIPT_LOG="$SCRIPT_HOME/d2launcher.log"
 SCRIPT_TEMP_DIR="$HOME/.cache/d2launcher"
 SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
-SCRIPT_HELP_FILE="$SCRIPT_RES_DIR/help.html"
+SCRIPT_HELP_FILE="$SCRIPT_RES_DIR/help.txt"
 
 # Wine
 WINE_BIN_DIR="$SCRIPT_BIN_DIR/wine"
@@ -354,7 +354,7 @@ show_gui_update_script() {
         return 1
     fi
 
-    (# Download
+    ( # Download
         latest_zip_url=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
     ) &
@@ -363,7 +363,7 @@ show_gui_update_script() {
         return 1
     fi
 
-    (# Installation
+    ( # Installation
         unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
         unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$GITHUB_AUTHOR-$GITHUB_REPO-*" -printf "%f")
         cp -f -R "$tmp_dir/$unziped_dir/"* "$WORKING_DIR"
@@ -416,7 +416,7 @@ show_gui_update_mxl() {
     mkdir -p "$tmp_patch_dir"
     cd "$tmp_patch_dir" || exit 1
 
-    (# Downloading
+    ( # Downloading
         curl -L "$MXL_DLL_URL" -o "$tmp_patch_dir/dlls.7z"
         curl -L "$MXL_MOD_URL" -o "$tmp_patch_dir/mod.7z"
     ) &
@@ -425,7 +425,7 @@ show_gui_update_mxl() {
         return 1
     fi
 
-    (# Extracting
+    ( # Extracting
         7z e "$tmp_patch_dir/dlls.7z" -aoa
         rm -f "$tmp_patch_dir/dlls.7z"
         7z e "$tmp_patch_dir/mod.7z" -aoa
@@ -513,7 +513,7 @@ show_gui_export_savegames() {
 }
 
 show_gui_help() {
-    zenity --text-info --width="800" --height="600" --title="Help" --ok-label="Ok" --cancel-label="Back" --html --filename="$SCRIPT_HELP_FILE"
+    zenity --text-info --width="800" --height="600" --title="Help" --ok-label="Ok" --cancel-label="Back" --font="monospace" --filename="$SCRIPT_HELP_FILE"
 }
 
 # /////////////////////////////////////////////////////
@@ -573,7 +573,7 @@ check_wine_install() {
         tmp_file="$SCRIPT_TEMP_DIR/wine64.tar.xz"
         rm -f "$tmp_file"
 
-        (# Download
+        ( # Download
             curl -Lk "$wine_native_url" -o "$tmp_file"
         ) &
         if ! zenity_progress $! "Downloading Wine"; then
@@ -581,7 +581,7 @@ check_wine_install() {
             return 1
         fi
 
-        (# Installation
+        ( # Installation
             cd "$SCRIPT_TEMP_DIR" || return 1
             mkdir -p "$SCRIPT_TEMP_DIR/wine64"
             tar -xf "$tmp_file" --directory "$SCRIPT_TEMP_DIR/wine64"
