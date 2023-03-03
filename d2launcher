@@ -686,7 +686,7 @@ check_d2_dir() {
 
 exec_wine() {
     check_wine_install || return 1
-    env WINEPREFIX="$wineprefix" "$wine_default" "$@" 2>&1 | log
+    WINEPREFIX="$wineprefix" "$wine_default" "$@" 2>&1 | log
 }
 
 exec_wine_exe() {
