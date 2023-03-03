@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="3.6.2"
+SCRIPT_VERSION="3.6.3"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -37,7 +37,7 @@ SCRIPT_BIN_DIR="$SCRIPT_HOME/bin"
 
 SCRIPT_CONFIG="$SCRIPT_HOME/d2launcher.conf"
 SCRIPT_LOG="$SCRIPT_HOME/d2launcher.log"
-SCRIPT_TEMP_DIR="$HOME/.cache/d2launcher"
+SCRIPT_TEMP_DIR="$(mktemp -d "$HOME/.cache/d2launcher.XXXXXXXXXX")"
 SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
 SCRIPT_HELP_FILE="$SCRIPT_RES_DIR/help.txt"
 
@@ -144,8 +144,6 @@ main() {
     # Create Script Dirs
     mkdir -p "$SCRIPT_HOME" || exit 1
     mkdir -p "$SCRIPT_BIN_DIR" || exit 1
-    rm -f -r "$SCRIPT_TEMP_DIR" || exit 1
-    mkdir -p "$SCRIPT_TEMP_DIR" || exit 1
 
     # Migration from old d2launcherversion
     if [ -f "$WORKING_DIR/d2launcher.conf" ] || [ -d "$WORKING_DIR/.wineprefix" ] || [ -d "$WORKING_DIR/res/patches" ] || [ -d "$WORKING_DIR/res/d2-stats" ] || [ -d "$WORKING_DIR/res/wine64" ]; then
@@ -860,6 +858,13 @@ config_replace_property() {
     sed -i "s#$key=.*#$key=\"$value\"#g" "$SCRIPT_CONFIG"
     echo -e "Configuration: $key was set to \"$value\""
 }
+
+set_trap() {
+    rm -rf "$SCRIPT_TEMP_DIR"
+}
+
+# Set trap
+trap set_trap EXIT
 
 # /////////////////////////////////////////////////////
 # START
