@@ -263,7 +263,7 @@ show_settings_menu() {
     item_01="Edit Configuration"
     item_02="Wine Settings"
     item_03="Glide Wrapper Settings"
-    item_04="cnc-ddraw Settings"
+    item_04="Direct Draw Settings"
     item_05="Diablo II Video Settings"
     item_06="Run *.exe"
     item_07="Import Median XL Savegames"
