@@ -60,6 +60,9 @@ D2_VIDTEST_EXE="D2VidTst.exe"
 D2_GLIDE_FILE="$SCRIPT_RES_DIR/gl32ogl14e.zip"
 D2_GLIDE_EXE="glide-init.exe"
 
+# cnc-ddraw
+D2_DDRAW_CONFIG_EXE="cnc-ddraw config.exe"
+
 # D2Stats
 D2_STATS_BIN_DIR="$SCRIPT_BIN_DIR/d2-stats"
 D2_STATS_EXE="D2Stats.exe"
@@ -82,6 +85,7 @@ d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-l
 wine_default="$WINE_INTERNAL"
 wineprefix="$WINE_INTERNAL_PREFIX"
 wine_user="$WINE_INTERNAL_USER"
+wine_init=""
 
 # Diablo II
 d2_dir="$SCRIPT_BIN_DIR/diablo2"
@@ -95,7 +99,7 @@ d2_stats_tray="true"
 
 # Gui
 gui_width="420"
-gui_height="300"
+gui_height="320"
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="9"
@@ -259,11 +263,12 @@ show_settings_menu() {
     item_01="Edit Configuration"
     item_02="Wine Settings"
     item_03="Glide Wrapper Settings"
-    item_04="Diablo II Video Settings"
-    item_05="Run *.exe"
-    item_06="Import Median XL Savegames"
-    item_07="Export Median XL Savegames"
-    result=$(zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06" "$item_07")
+    item_04="cnc-ddraw Settings"
+    item_05="Diablo II Video Settings"
+    item_06="Run *.exe"
+    item_07="Import Median XL Savegames"
+    item_08="Export Median XL Savegames"
+    result=$(zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06" "$item_07" "$item_08")
     if [ "$result" = "$item_01" ]; then
         show_gui_edit_configuration
         return
@@ -277,18 +282,22 @@ show_settings_menu() {
         return
     fi
     if [ "$result" = "$item_04" ]; then
-        exec_d2_video_settings
+        exec_ddraw_settings
         return
     fi
     if [ "$result" = "$item_05" ]; then
-        show_gui_run_exe
+        exec_d2_video_settings
         return
     fi
     if [ "$result" = "$item_06" ]; then
-        show_gui_import_savegames
+        show_gui_run_exe
         return
     fi
     if [ "$result" = "$item_07" ]; then
+        show_gui_import_savegames
+        return
+    fi
+    if [ "$result" = "$item_08" ]; then
         show_gui_export_savegames
         return
     fi
@@ -699,7 +708,7 @@ check_d2_dir() {
 
 exec_wine() {
     check_wine_install || return 1
-    WINEPREFIX="$wineprefix" "$wine_default" "$@" 2>&1 | log
+    WINEPREFIX="$wineprefix" $wine_init "$wine_default" "$@" 2>&1 | log
 }
 
 exec_wine_exe() {
@@ -758,6 +767,17 @@ exec_glide_settings() {
         return 1
     fi
     exec_wine_exe "$d2_dir/$D2_GLIDE_EXE"
+}
+
+exec_ddraw_settings() {
+    check_d2_dir || return 1
+    # check_ddraw_install || return 1
+    check_wine_install || return 1
+    if [ ! -f "$d2_dir/$D2_DDRAW_CONFIG_EXE" ]; then
+        zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE not found"
+        return 1
+    fi
+    exec_wine_exe "$d2_dir/$D2_DDRAW_CONFIG_EXE"
 }
 
 exec_d2_video_settings() {

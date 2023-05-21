@@ -13,6 +13,7 @@
 - Import/Export of savegames
 - D2 Stats included (will download by script)
 - Sven's Glide wrapper included
+- cnc-ddraw supported
 - Diablo II 1.13c files to work with Median XL included
 - Updater (incl. notification on new updates)
 - Configuration of Script Properties
@@ -85,3 +86,16 @@ gui_dialog_size="9"
 ## Using D2Stats
 
 It's nessesary to start D2Stats (Statistics) in d2launcher first, before starting Diablo II. Because d2launcher will check every start of Diablo II (using pgrep) if D2Stats is running. In this case, d2launcher starts Diablo II automatically with [sigma-loader](https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader).
+
+## Using cnc-ddraw
+
+1. Download latest [cnc-ddraw.zip](https://github.com/FunkyFr3sh/cnc-ddraw/releases)
+2. Follow [install instruction](https://github.com/murkl/d2launcher/issues/8#issuecomment-1553762919)
+
+## Using Game Mode
+
+Install the `gamemode` package in your system and add this property in d2launcher settings:
+
+```
+wine_init="gamemoderun"
+```

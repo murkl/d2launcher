@@ -72,3 +72,5 @@ https://github.com/Kron4ek/Wine-Builds/
 https://github.com/Kyromyr/D2Stats
 https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader
 https://github.com/synthagency/icons-flat-osx
+http://www.svenswrapper.de
+https://github.com/FunkyFr3sh/cnc-ddraw
