@@ -51,7 +51,7 @@ You can override the script properties in the configuration settings. All files 
 ## Example config
 
 ```
-d2_dir="~/.d2launcher/bin/diablo2"
+d2_dir="$HOME/.d2launcher/bin/diablo2"
 d2_exe="Diablo II.exe"
 d2_args="-ddraw"
 wine_init="gamemoderun"
