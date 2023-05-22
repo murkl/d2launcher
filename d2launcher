@@ -270,6 +270,14 @@ show_settings_menu() {
     local item_08="Export Median XL Savegames"
     local result
     result=$(zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06" "$item_07" "$item_08")
+    local result_code=$?
+    if [ $result_code = 1 ] && [ "$result" = "" ]; then
+        return
+    fi
+    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
+        show_gui_help
+        return
+    fi
     if [ "$result" = "$item_01" ]; then
         show_gui_edit_configuration
         return
@@ -311,6 +319,14 @@ show_update_manager_menu() {
     local item_04="Force D2Stats update"
     local result
     result=$(zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
+    local result_code=$?
+    if [ $result_code = 1 ] && [ "$result" = "" ]; then
+        return
+    fi
+    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
+        show_gui_help
+        return
+    fi
     if [ "$result" = "$item_01" ]; then
         show_gui_update_mxl
         return
@@ -474,7 +490,12 @@ show_gui_mxl_patches() {
     # List patch files
     cd "$MXL_PATCHES_DIR" || exit 1
     if ! patch_filename=$(find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity_menu "Median XL Patches" "Back" "Patch"); then
-        return 1
+        if [ "$patch_filename" = "?" ]; then
+            show_gui_help
+            return
+        else
+            return 1
+        fi
     fi
 
     if [ "$patch_filename" = "" ]; then
