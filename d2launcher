@@ -789,7 +789,7 @@ exec_ddraw_settings() {
     # check_ddraw_install || return 1
     check_wine_install || return 1
     if [ ! -f "$d2_dir/$D2_DDRAW_CONFIG_EXE" ]; then
-        zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE not found"
+        zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE not found. Will open help in browser..."
         (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw) &
         return 1
     fi
