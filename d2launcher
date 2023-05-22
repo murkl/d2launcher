@@ -228,7 +228,7 @@ show_main_menu() {
     local item_04="Update Manager"
     local item_05="Settings"
     local result
-    result=$(zenity_menu "" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
+    result=$(zenity_menu "" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05")
     local result_code=$?
     if [ $result_code = 1 ] && [ "$result" = "" ]; then
         exit 0
@@ -260,8 +260,8 @@ show_main_menu() {
 }
 
 show_settings_menu() {
-    local item_02="Wine Settings"
     local item_01="Edit Configuration"
+    local item_02="Wine Settings"
     local item_03="Diablo II Video Settings"
     local item_04="Glide Wrapper Settings"
     local item_05="Direct Draw Settings"
@@ -544,7 +544,7 @@ show_gui_export_savegames() {
 }
 
 show_gui_help() {
-    xdg-open https://github.com/murkl/d2launcher#documentation
+    (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#documentation) &
 }
 
 # /////////////////////////////////////////////////////
@@ -790,7 +790,7 @@ exec_ddraw_settings() {
     check_wine_install || return 1
     if [ ! -f "$d2_dir/$D2_DDRAW_CONFIG_EXE" ]; then
         zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE not found"
-        xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw
+        (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw) &
         return 1
     fi
     exec_wine_exe "$d2_dir/$D2_DDRAW_CONFIG_EXE"
