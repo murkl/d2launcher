@@ -11,12 +11,13 @@
 - Download latest Median XL patch (incl. notification on new updates)
 - Median XL Version Management
 - Import/Export of savegames
-- D2 Stats included (will download by script)
-- Sven's Glide wrapper included
-- cnc-ddraw supported
+- [D2 Stats](https://github.com/Kyromyr/D2Stats) included (will download by script)
+- [Sven's Glide wrapper](http://www.svenswrapper.de) included
+- Direct Draw [cnc-ddraw](https://github.com/FunkyFr3sh/cnc-ddraw) supported
 - Diablo II 1.13c files to work with Median XL included
 - Updater (incl. notification on new updates)
-- Configuration of Script Properties
+- Supports the execution of EXE files within the wine prefix
+- Configurable (see [Documentation](#documentation))
 - 100% GUI
 
 # Installation
@@ -167,6 +168,8 @@ auto       refreshrate
 ```
 
 # External Sources
+
+Many thanks to these projects:
 
 - https://median-xl.com
 - https://github.com/Kron4ek/Wine-Builds/
