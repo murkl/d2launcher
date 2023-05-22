@@ -48,6 +48,20 @@ You will need a Diablo II installation to work! (the script will ask you for the
 
 You can override the script properties in the configuration settings. All files are located here: `~/.d2launcher`
 
+## Example config
+
+```
+d2_dir="~/.d2launcher/bin/diablo2"
+d2_exe="Diablo II.exe"
+d2_args="-ddraw"
+wine_init="gamemoderun"
+d2_stats_tray="true"
+update_check="true"
+mxl_update_check="true"
+gui_width="420"
+gui_height="320"
+```
+
 ## Change Download URL's
 
 ```
@@ -99,3 +113,65 @@ Install the `gamemode` package in your system and add this property in d2launche
 ```
 wine_init="gamemoderun"
 ```
+
+## Diablo II arguments
+
+```
+Enable Glide wrapper       | -3dfx
+Window mode                | -w
+Skip to Median XL Login    | -skiptobnet
+No sound                   | -ns
+```
+
+## Glide Wrapper Settings
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Glide Wrapper Settings                                 │
+└────────────────────────────────────────────────────────┘
+☐          window mode
+☑          capture mouse
+☐          keep aspect ratio
+☐          vertical synchronization (VSYNC)
+no         fps-limit
+no         static size
+☐          window extras
+auto       refreshrate
+☑          desktopresolution
+
+┌────────────────────────────────────────────────────────┐
+│ Glide Wrapper Renderer                                 │
+└────────────────────────────────────────────────────────┘
+32 MB      texture-memory
+1024x1024  buffer-texture-size
+☑          32 bit rendering
+☑          texture for videos
+☑          bilinear filtering
+☑          supersampling
+☑          shader-gamma
+☐          no gamma
+☑          keep desktop composition
+
+┌────────────────────────────────────────────────────────┐
+│ Glide Wrapper Extensions                               │
+└────────────────────────────────────────────────────────┘
+☑          GL_EXT_vertex_array
+☑          GL_ATI_fragment_shader
+☑          GL_ARB_fragment_program
+☑          GL_EXT_paletted_texture
+☑          GL_EXT_shared_texture_palette
+☑          GL_EXT_packed_pixels
+☑          GL_EXT_texture_env_combine
+☑          WGL_EXT_swap_control
+☑          WGL_ARB_render_texture
+```
+
+# External Sources
+
+- https://median-xl.com
+- https://github.com/Kron4ek/Wine-Builds/
+- https://github.com/Kyromyr/D2Stats
+- https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader
+- https://github.com/synthagency/icons-flat-osx
+- http://www.svenswrapper.de
+- https://github.com/FunkyFr3sh/cnc-ddraw

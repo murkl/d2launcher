@@ -39,7 +39,6 @@ SCRIPT_CONFIG="$SCRIPT_HOME/d2launcher.conf"
 SCRIPT_LOG="$SCRIPT_HOME/d2launcher.log"
 SCRIPT_TEMP_DIR="$(mktemp -d "$HOME/.cache/d2launcher.XXXXXXXXXX")"
 SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
-SCRIPT_HELP_FILE="$SCRIPT_RES_DIR/help.txt"
 
 # Wine
 WINE_BIN_DIR="$SCRIPT_BIN_DIR/wine"
@@ -196,7 +195,7 @@ main() {
         cd "$WORKING_DIR" || exit 1
 
         # Handle Desktop Files
-        user_desktop_file="$HOME/.local/share/applications/d2launcher.desktop"
+        local user_desktop_file="$HOME/.local/share/applications/d2launcher.desktop"
         if [ -f /usr/share/applications/d2launcher.desktop ]; then
             # If installed systemwide remove users desktop file
             if [ -f "$user_desktop_file" ]; then rm -f "$user_desktop_file"; fi
@@ -223,15 +222,20 @@ main() {
 # /////////////////////////////////////////////////////
 
 show_main_menu() {
-    item_01="Diablo II"
-    item_02="Statistics"
-    item_03="Median XL Patches"
-    item_04="Update Manager"
-    item_05="Settings"
-    item_06="Help"
+    local item_01="Diablo II"
+    local item_02="Statistics"
+    local item_03="Median XL Patches"
+    local item_04="Update Manager"
+    local item_05="Settings"
+    local result
     result=$(zenity_menu "" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
-    if [ $? = 1 ]; then
+    local result_code=$?
+    if [ $result_code = 1 ] && [ "$result" = "" ]; then
         exit 0
+    fi
+    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
+        show_gui_help
+        return
     fi
     if [ "$result" = "$item_01" ]; then
         exec_diablo2
@@ -253,21 +257,18 @@ show_main_menu() {
         show_settings_menu
         return
     fi
-    if [ "$result" = "$item_06" ]; then
-        show_gui_help
-        return
-    fi
 }
 
 show_settings_menu() {
-    item_01="Edit Configuration"
-    item_02="Wine Settings"
-    item_03="Glide Wrapper Settings"
-    item_04="Direct Draw Settings"
-    item_05="Diablo II Video Settings"
-    item_06="Run *.exe"
-    item_07="Import Median XL Savegames"
-    item_08="Export Median XL Savegames"
+    local item_02="Wine Settings"
+    local item_01="Edit Configuration"
+    local item_03="Diablo II Video Settings"
+    local item_04="Glide Wrapper Settings"
+    local item_05="Direct Draw Settings"
+    local item_06="Run EXE within wineprefix..."
+    local item_07="Import Median XL Savegames"
+    local item_08="Export Median XL Savegames"
+    local result
     result=$(zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06" "$item_07" "$item_08")
     if [ "$result" = "$item_01" ]; then
         show_gui_edit_configuration
@@ -278,15 +279,15 @@ show_settings_menu() {
         return
     fi
     if [ "$result" = "$item_03" ]; then
-        exec_glide_settings
+        exec_d2_video_settings
         return
     fi
     if [ "$result" = "$item_04" ]; then
-        exec_ddraw_settings
+        exec_glide_settings
         return
     fi
     if [ "$result" = "$item_05" ]; then
-        exec_d2_video_settings
+        exec_ddraw_settings
         return
     fi
     if [ "$result" = "$item_06" ]; then
@@ -304,10 +305,11 @@ show_settings_menu() {
 }
 
 show_update_manager_menu() {
-    item_01="Check for Median XL update"
-    item_02="Check for D2Launcher update"
-    item_03="Force Wine update"
-    item_04="Force D2Stats update"
+    local item_01="Check for Median XL update"
+    local item_02="Check for D2Launcher update"
+    local item_03="Force Wine update"
+    local item_04="Force D2Stats update"
+    local result
     result=$(zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04")
     if [ "$result" = "$item_01" ]; then
         show_gui_update_mxl
@@ -333,17 +335,18 @@ show_update_manager_menu() {
 
 show_gui_update_script() {
 
-    tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-update"
+    local tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-update"
     rm -f -r "$tmp_dir"
     mkdir -p "$tmp_dir"
 
     # Fetch latest version
-    latest_version_file="$tmp_dir/latest.version"
+    local latest_version_file="$tmp_dir/latest.version"
     (curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].name' >"$latest_version_file") &
     if ! zenity_progress $! "Fetching D2Launcher update infos"; then
         zenity_error "Error during fetch D2Launcher update infos"
         return 1
     fi
+    local latest_version
     latest_version=$(<"$latest_version_file")
 
     if [ "$latest_version" = "" ]; then
@@ -356,17 +359,18 @@ show_gui_update_script() {
         return 1
     fi
 
-    version_info_text="No update available!\n\nForce install <b>D2Launcher $latest_version</b>?"
+    local version_info_text="No update available!\n\nForce install <b>D2Launcher $latest_version</b>?"
     if [ "$SCRIPT_VERSION" != "$latest_version" ]; then
         version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
     fi
 
-    version_text="Installed version:\t$SCRIPT_VERSION\nRemote version:\t\t$latest_version\n\n$version_info_text"
+    local version_text="Installed version:\t$SCRIPT_VERSION\nRemote version:\t\t$latest_version\n\n$version_info_text"
     if ! zenity_question "<big>D2Launcher Updater</big>\n\n$version_text"; then
         return 1
     fi
 
     ( # Download
+        local latest_zip_url
         latest_zip_url=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
     ) &
@@ -377,6 +381,7 @@ show_gui_update_script() {
 
     ( # Installation
         unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
+        local unziped_dir
         unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$GITHUB_AUTHOR-$GITHUB_REPO-*" -printf "%f")
         cp -f -R "$tmp_dir/$unziped_dir/"* "$WORKING_DIR"
         chmod +x "$SCRIPT_FILE"
@@ -393,17 +398,18 @@ show_gui_update_script() {
 show_gui_update_mxl() {
     check_d2_dir || return 1
 
-    tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-mxl-update"
+    local tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-mxl-update"
     rm -f -r "$tmp_dir"
     mkdir -p "$tmp_dir"
 
-    latest_version_file="$tmp_dir/d2launcher-mxl-latest-patch.json"
+    local latest_version_file="$tmp_dir/d2launcher-mxl-latest-patch.json"
     (curl -sL "$MXL_VERSION_URL" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " >"$latest_version_file") &
     if ! zenity_progress $! "Fetching Median XL version infos"; then
         send_notify "No connection to Median XL server"
         return 1
     fi
 
+    local latest_mxl_version
     latest_mxl_version=$(<"$latest_version_file")
     if [ "$latest_mxl_version" = "" ]; then
         send_notify "Error no Median XL version found"
@@ -416,15 +422,15 @@ show_gui_update_mxl() {
         return 1
     fi
 
-    question_text="<big>Median XL Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$latest_mxl_version</b>?"
+    local question_text="<big>Median XL Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$latest_mxl_version</b>?"
     if ! zenity_question "$question_text"; then
         return 1
     fi
 
-    new_mxl_patch_prefix="d2launcher-mxl-$latest_mxl_version"
+    local new_mxl_patch_prefix="d2launcher-mxl-$latest_mxl_version"
 
     # Create tmp download dir
-    tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
+    local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
     mkdir -p "$tmp_patch_dir"
     cd "$tmp_patch_dir" || exit 1
 
@@ -492,6 +498,7 @@ show_gui_mxl_patches() {
 }
 
 show_gui_edit_configuration() {
+    local result
     if result=$(zenity --text-info --width="800" --height="600" --title="Configuration" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$SCRIPT_CONFIG"); then
         echo "$result" >"$SCRIPT_CONFIG"
         send_notify "Configuration saved"
@@ -500,6 +507,7 @@ show_gui_edit_configuration() {
 }
 
 show_gui_run_exe() {
+    local file
     file=$(zenity --file-selection --title="Run *.exe" --file-filter="*.exe *.msi")
     if [ "$file" = "" ]; then
         return 1
@@ -508,6 +516,7 @@ show_gui_run_exe() {
 }
 
 show_gui_import_savegames() {
+    local file
     file=$(zenity --file-selection --title="Import Median XL Savegames" --file-filter="d2launcher-mxl-save-*.zip")
     if [ "$file" = "" ]; then
         return 1
@@ -522,10 +531,12 @@ show_gui_export_savegames() {
         zenity_error "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL not found"
         return 1
     fi
+    local directory
     directory=$(zenity --file-selection --title="Export Median XL Savegames" --directory)
     if [ "$directory" = "" ]; then
         return 1
     fi
+    local filename
     filename="d2launcher-mxl-save-$(date "+%Y-%m-%d-%H%M").zip"
     cd "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL" || exit 1
     zip -r -0 "$directory/$filename" .
@@ -533,7 +544,7 @@ show_gui_export_savegames() {
 }
 
 show_gui_help() {
-    zenity --text-info --width="800" --height="600" --title="Help" --ok-label="Ok" --cancel-label="Back" --font="monospace" --filename="$SCRIPT_HELP_FILE"
+    xdg-open https://github.com/murkl/d2launcher#documentation
 }
 
 # /////////////////////////////////////////////////////
@@ -541,6 +552,7 @@ show_gui_help() {
 # /////////////////////////////////////////////////////
 
 check_update_script() {
+    local latest_version
     latest_version=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].name')
     if [ "$latest_version" = "" ]; then
         send_notify "GitHub connection error"
@@ -555,6 +567,7 @@ check_update_script() {
 
 check_update_mxl() {
     # Parse mxl patch infos
+    local latest_mxl_version
     latest_mxl_version=$(curl -sL "$MXL_VERSION_URL" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" ")
     if [ "$latest_mxl_version" = "" ]; then
         send_notify "No connection to Median XL server"
@@ -590,7 +603,7 @@ check_wine_install() {
             return 1
         fi
 
-        tmp_file="$SCRIPT_TEMP_DIR/wine64.tar.xz"
+        local tmp_file="$SCRIPT_TEMP_DIR/wine64.tar.xz"
         rm -f "$tmp_file"
 
         ( # Download
@@ -628,7 +641,7 @@ check_d2stats_install() {
             rm -f -r "$D2_STATS_BIN_DIR"
             mkdir -p "$D2_STATS_BIN_DIR"
             cd "$D2_STATS_BIN_DIR" || exit 1
-            rar_file=d2-stats.rar
+            local rar_file=d2-stats.rar
             curl -Lk "$d2_stats_url" -o "$rar_file"
             unrar x "$rar_file"
             rm "$rar_file"
@@ -688,6 +701,7 @@ check_patch_installation() {
 check_d2_dir() {
     if [ ! -d "$d2_dir" ]; then
         zenity_info "Please choose Diablo II directory..."
+        local directory
         directory=$(zenity --file-selection --title="Choose Diablo II directory" --directory)
         if [ $? = 1 ]; then
             return 1
@@ -747,6 +761,7 @@ exec_d2stats() {
         for ((i = 1; i < 6; i++)); do
             echo -e "${i}. Try closing D2Stats system tray..."
             sleep 1
+            local win_result
             win_result=$(wmctrl -l | grep "Wine System Tray")
             if [ "$win_result" != "" ]; then
                 wmctrl -c 'Wine System Tray'
@@ -775,6 +790,7 @@ exec_ddraw_settings() {
     check_wine_install || return 1
     if [ ! -f "$d2_dir/$D2_DDRAW_CONFIG_EXE" ]; then
         zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE not found"
+        xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw
         return 1
     fi
     exec_wine_exe "$d2_dir/$D2_DDRAW_CONFIG_EXE"
@@ -799,29 +815,29 @@ zenity() {
 }
 
 zenity_dialog() {
-    text="$1" && shift
-    styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
+    local text="$1" && shift
+    local styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
     zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$@"
 }
 
 zenity_info() {
-    text="$1" && shift
+    local text="$1" && shift
     zenity_dialog "$text" --info "$@"
 }
 
 zenity_error() {
-    text="$1" && shift
+    local text="$1" && shift
     zenity_dialog "$text" --error "$@"
 }
 
 zenity_question() {
-    text="$1" && shift
+    local text="$1" && shift
     zenity_dialog "$text" --question "$@"
 }
 
 zenity_progress() {
-    piped_pid="$1" && shift
-    text="$1" && shift
+    local piped_pid="$1" && shift
+    local text="$1" && shift
     tail -f /dev/null --pid "$piped_pid" | (
         zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (
             kill -9 "$(list_all_children_pid "$piped_pid")"
@@ -832,18 +848,18 @@ zenity_progress() {
 }
 
 zenity_menu() {
-    menu_text="$1" && shift
-    cancel_button_text="$1" && shift
-    ok_button_text="$1" && shift
-    mxl_version_info_text="not installed"
+    local menu_text="$1" && shift
+    local cancel_button_text="$1" && shift
+    local ok_button_text="$1" && shift
+    local mxl_version_info_text="not installed"
     if [ -f "$d2_dir/$MXL_PATCH_VERSION" ]; then
         # Read installed Median XL version
         mxl_version_info_text=$(rev <"$d2_dir/$MXL_PATCH_VERSION" | cut -f 1 -d '-' | rev)
     fi
-    text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
-    text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$SCRIPT_VERSION' • '$mxl_version_info_text'</b></span>'
-    text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
-    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
+    local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
+    local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$SCRIPT_VERSION' • '$mxl_version_info_text'</b></span>'
+    local text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
+    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --extra-button="?" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
 }
 
 # /////////////////////////////////////////////////////
