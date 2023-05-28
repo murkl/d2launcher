@@ -48,7 +48,7 @@ You will need a Diablo II installation to work! (the script will ask you for the
 
 # Documentation
 
-You can override the script properties in the configuration settings (`Settings` -> `Edit Configuration`). All files are located here: `~/.d2launcher`
+You can override the script properties in the configuration settings (`Settings` > `Edit Configuration`). All files are located here: `~/.d2launcher`
 
 ## Example config
 
@@ -72,7 +72,7 @@ d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.4/D2Stat
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 ```
 
-**Note:** If you change the URLs, you have to force the regarding update/install: `Update Manger` -> `Force Proton Update`/`Force D2Stats Update`
+**Note:** If you change the URLs, you have to force the regarding update/install: `Update Manger` > `Force Proton Update`/`Force D2Stats Update`
 
 ## Custom Wine Version
 
@@ -109,14 +109,14 @@ Thanks to [@GnomeBeans](https://github.com/murkl/d2launcher/issues/8#issuecommen
 
 1. Download latest [cnc-ddraw.zip](https://github.com/FunkyFr3sh/cnc-ddraw/releases)
 2. Unzip the downloaded `cnc-ddraw.zip` and drop the content into `diablo 2` install dir (same as your `d2_dir` property).
-3. Goto `Settings` -> `Wine Settings` -> `Library` and override/add `ddraw` (set DLL load strategy to: `native then built in`).
-4. Change `d2_args` property in `Settings` -> `Edit Configuration` from `-3dfx` to `-ddraw`
-5. Optimize prefered settings: `Settings` -> `Direct Draw Settings` (optional)
+3. Goto `Settings` > `Wine Settings` > `Library` and override/add `ddraw` (set DLL load strategy to: `native then built in`).
+4. Change `d2_args` property in `Settings` > `Edit Configuration` from `-3dfx` to `-ddraw`
+5. Optimize prefered settings: `Settings` > `Direct Draw Settings` (optional)
 6. Run `Diablo II`
 
 ## Using Game Mode
 
-Install the `gamemode` package in your system and add this property in `Settings` -> `Edit Configuration`:
+Install the `gamemode` package in your system and add this property in `Settings` > `Edit Configuration`:
 
 ```
 wine_init="gamemoderun"
@@ -124,7 +124,7 @@ wine_init="gamemoderun"
 
 ## Diablo II arguments
 
-Goto `Settings` -> `Edit Configuration` and modify `d2_args` property:
+Goto `Settings` > `Edit Configuration` and modify `d2_args` property:
 
 ```
 Enable Glide wrapper       | -3dfx
@@ -136,10 +136,9 @@ No sound                   | -ns
 
 **Note:** Add multiple arguments with `-ddraw -skiptobnet ...`
 
-
 ## Glide Wrapper Settings
 
-Change in `Settings` -> `Glide Wrapper Settings` (optional)
+Change in `Settings` > `Glide Wrapper Settings` (optional)
 
 ```
 ┌────────────────────────────────────────────────────────┐
