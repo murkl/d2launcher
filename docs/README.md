@@ -8,6 +8,7 @@
 
 # Features
 
+- Simple Backup & Restore
 - Custom Proton (64 Bit) build will download by script
 - Download latest Median XL patch (incl. notification on new updates)
 - Median XL Version Management
@@ -23,7 +24,7 @@
 
 # Installation
 
-You will need a Diablo II installation to work! (the script will ask you for the location)
+You need the Diablo II installation files for the script to work! (You will be asked for the location in the script)
 
 ## Arch Linux
 
@@ -48,7 +49,15 @@ You will need a Diablo II installation to work! (the script will ask you for the
 
 # Documentation
 
-You can override the script properties in the configuration settings (`Settings` > `Edit Configuration`). All files are located here: `~/.d2launcher`
+You can override the script properties in the configuration settings (`Settings` > `Edit Configuration`). These settings can be edited manually in `~/.d2launcher/d2launcher.conf`.
+
+## Backup & Restore
+
+All files are located here: `~/.d2launcher`. Simply copy & paste to another system. Feel free to move your Diablo II installation dir to `~/.d2launcher/bin/diablo2` to backup all files together.
+
+## Logging
+
+The logging file is `~/.d2launcher/d2launcher.log` and is not rotated.
 
 ## Example config
 
