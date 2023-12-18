@@ -832,7 +832,7 @@ exec_d2_video_settings() {
 # /////////////////////////////////////////////////////
 
 zenity() {
-    /usr/bin/zenity --class="d2launcher" --name="d2launcher" --title="" --window-icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
+    /usr/bin/zenity --title="" --window-icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
 }
 
 zenity_dialog() {
