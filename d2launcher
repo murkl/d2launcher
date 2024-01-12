@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="3.6.3"
+SCRIPT_VERSION="3.6.4"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -97,8 +97,8 @@ mxl_update_check="true"
 d2_stats_tray="true"
 
 # Gui
-gui_width="420"
-gui_height="320"
+gui_width="450"
+gui_height="350"
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="9"
@@ -123,7 +123,7 @@ main() {
         send_notify "curl not installed"
         exit 1
     fi
-    if ! [ -x "$(command -v 7z)" ]; then
+    if ! [ -x "$(command -v 7z)" ] && ! [ -x "$(command -v 7za)" ]; then
         send_notify "p7zip not installed"
         exit 1
     fi
@@ -208,7 +208,7 @@ main() {
                 echo "Exec=\"$SCRIPT_FILE\""
                 echo "Type=Application"
                 echo "Terminal=false"
-                echo "StartupWMClass=d2launcher"
+                echo "StartupWMClass=zenity"
             } >"$user_desktop_file"
         fi
 
@@ -228,7 +228,8 @@ show_main_menu() {
     local item_04="Update Manager"
     local item_05="Settings"
     local result
-    result=$(zenity_menu "" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05")
+
+    result=$(zenity_menu "Menu" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05")
     local result_code=$?
     if [ $result_code = 1 ] && [ "$result" = "" ]; then
         exit 0
@@ -385,7 +386,7 @@ show_gui_update_script() {
         return 1
     fi
 
-    ( # Download
+    (# Download
         local latest_zip_url
         latest_zip_url=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
@@ -395,7 +396,7 @@ show_gui_update_script() {
         return 1
     fi
 
-    ( # Installation
+    (# Installation
         unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
         local unziped_dir
         unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$GITHUB_AUTHOR-$GITHUB_REPO-*" -printf "%f")
@@ -449,8 +450,8 @@ show_gui_update_mxl() {
     local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
     mkdir -p "$tmp_patch_dir"
     cd "$tmp_patch_dir" || exit 1
-
-    ( # Downloading
+    # Downloading
+    (
         curl -L "$MXL_DLL_URL" -o "$tmp_patch_dir/dlls.7z"
         curl -L "$MXL_MOD_URL" -o "$tmp_patch_dir/mod.7z"
     ) &
@@ -459,10 +460,14 @@ show_gui_update_mxl() {
         return 1
     fi
 
-    ( # Extracting
-        7z e "$tmp_patch_dir/dlls.7z" -aoa
+    # Extracting
+    (
+        local szip_bin=""
+        [ -x "$(command -v 7z)" ] && szip_bin="7z"
+        [ -x "$(command -v 7za)" ] && szip_bin="7za"
+        $szip_bin e "$tmp_patch_dir/dlls.7z" -aoa
+        $szip_bin e "$tmp_patch_dir/mod.7z" -aoa
         rm -f "$tmp_patch_dir/dlls.7z"
-        7z e "$tmp_patch_dir/mod.7z" -aoa
         rm -f "$tmp_patch_dir/mod.7z"
         mkdir -p "$MXL_PATCHES_DIR"
         zip -r -0 "$MXL_PATCHES_DIR/$new_mxl_patch_prefix.zip" .
@@ -627,7 +632,8 @@ check_wine_install() {
         local tmp_file="$SCRIPT_TEMP_DIR/wine64.tar.xz"
         rm -f "$tmp_file"
 
-        ( # Download
+        # Download
+        (
             curl -Lk "$wine_native_url" -o "$tmp_file"
         ) &
         if ! zenity_progress $! "Downloading Wine"; then
@@ -635,7 +641,8 @@ check_wine_install() {
             return 1
         fi
 
-        ( # Installation
+        # Installation
+        (
             cd "$SCRIPT_TEMP_DIR" || return 1
             mkdir -p "$SCRIPT_TEMP_DIR/wine64"
             tar -xf "$tmp_file" --directory "$SCRIPT_TEMP_DIR/wine64"
@@ -832,7 +839,7 @@ exec_d2_video_settings() {
 # /////////////////////////////////////////////////////
 
 zenity() {
-    /usr/bin/zenity --class="d2launcher" --name="d2launcher" --title="" --window-icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
+    /usr/bin/zenity --title="" --window-icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
 }
 
 zenity_dialog() {
@@ -879,8 +886,7 @@ zenity_menu() {
     fi
     local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
     local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$SCRIPT_VERSION' • '$mxl_version_info_text'</b></span>'
-    local text_3_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>'$menu_text'</b></span>'
-    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --extra-button="?" --text="$text_1_styled\n$text_2_styled\n\n$text_3_styled" --hide-header --column="" "$@"
+    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --extra-button="?" --text="$text_1_styled\n$text_2_styled\n" --column="$menu_text" "$@"
 }
 
 # /////////////////////////////////////////////////////
