@@ -20,6 +20,7 @@
 - Updater (incl. notification on new updates)
 - Supports the execution of EXE files within the wine prefix
 - Configurable (see [Documentation](#documentation))
+- Shellcheck approved
 - 100% GUI
 
 # Installation
@@ -29,7 +30,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 ## Arch Linux
 
 - Install from AUR
-  - `aur/d2launcher`
+  - [aur/d2launcher](https://aur.archlinux.org/packages/d2launcher)
 
 ## Debian/Ubuntu/elementaryOS
 
@@ -57,9 +58,9 @@ All files are located here: `~/.d2launcher`. Simply copy & paste to another syst
 
 ## Logging
 
-The logging file is `~/.d2launcher/d2launcher.log` and is not rotated.
+The logging file is `~/.d2launcher/d2launcher.log` and is **not** rotated. This contains only logs from execution of Diablo II.
 
-## Example config
+## Example `d2launcher.conf`
 
 ```
 d2_dir="$HOME/.d2launcher/bin/diablo2"
@@ -123,12 +124,18 @@ Thanks to [@GnomeBeans](https://github.com/murkl/d2launcher/issues/8#issuecommen
 5. Optimize prefered settings: `Settings` > `Direct Draw Settings` (optional)
 6. Run `Diablo II`
 
-## Using Game Mode
+## Using Game Mode / Hybrid Graphics
 
 Install the `gamemode` package in your system and add this property in `Settings` > `Edit Configuration`:
 
 ```
 wine_init="gamemoderun"
+```
+
+When using **Hybrid Graphics**, you can add for NVIDIA:
+
+```
+wine_init="prime-run gamemoderun"
 ```
 
 ## Diablo II arguments
@@ -149,10 +156,9 @@ No sound                   | -ns
 
 Change in `Settings` > `Glide Wrapper Settings` (optional)
 
+### Settings
+
 ```
-┌────────────────────────────────────────────────────────┐
-│ Glide Wrapper Settings                                 │
-└────────────────────────────────────────────────────────┘
 ☐          window mode
 ☑          capture mouse
 ☐          keep aspect ratio
@@ -162,32 +168,34 @@ no         static size
 ☐          window extras
 auto       refreshrate
 ☑          desktopresolution
+```
 
-┌────────────────────────────────────────────────────────┐
-│ Glide Wrapper Renderer                                 │
-└────────────────────────────────────────────────────────┘
-32 MB      texture-memory
-1024x1024  buffer-texture-size
-☑          32 bit rendering
-☑          texture for videos
-☑          bilinear filtering
-☑          supersampling
-☑          shader-gamma
-☐          no gamma
-☑          keep desktop composition
+### Renderer
 
-┌────────────────────────────────────────────────────────┐
-│ Glide Wrapper Extensions                               │
-└────────────────────────────────────────────────────────┘
-☑          GL_EXT_vertex_array
-☑          GL_ATI_fragment_shader
-☑          GL_ARB_fragment_program
-☑          GL_EXT_paletted_texture
-☑          GL_EXT_shared_texture_palette
-☑          GL_EXT_packed_pixels
-☑          GL_EXT_texture_env_combine
-☑          WGL_EXT_swap_control
-☑          WGL_ARB_render_texture
+```
+32 MB       texture-memory
+1024x1024   buffer-texture-size
+☑           32 bit rendering
+☑           texture for videos
+☑           bilinear filtering
+☑           supersampling
+☑           shader-gamma
+☐           no gamma
+☑           keep desktop composition
+```
+
+### Extensions
+
+```
+☑           GL_EXT_vertex_array
+☑           GL_ATI_fragment_shader
+☑           GL_ARB_fragment_program
+☑           GL_EXT_paletted_texture
+☑           GL_EXT_shared_texture_palette
+☑           GL_EXT_packed_pixels
+☑           GL_EXT_texture_env_combine
+☑           WGL_EXT_swap_control
+☑           WGL_ARB_render_texture
 ```
 
 # External Sources
