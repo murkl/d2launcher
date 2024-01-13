@@ -127,8 +127,8 @@ main() {
         send_notify "p7zip not installed"
         exit 1
     fi
-    if ! [ -x "$(command -v unrar)" ]; then
-        send_notify "unrar not installed"
+    if ! [ -x "$(command -v unzip)" ]; then
+        send_notify "unzip not installed"
         exit 1
     fi
     if ! [ -x "$(command -v jq)" ]; then
