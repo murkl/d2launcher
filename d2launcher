@@ -77,7 +77,7 @@ MXL_PATCH_VERSION="d2launcher-patch.version"
 
 # Urls
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.5/D2Stats-3.11.5.rar"
+d2_stats_url="https://github.com/Zahariel1942/D2Stats/releases/latest/download/D2Stats.zip"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 
 # Wine
@@ -127,8 +127,8 @@ main() {
         send_notify "p7zip not installed"
         exit 1
     fi
-    if ! [ -x "$(command -v unrar)" ]; then
-        send_notify "unrar not installed"
+    if ! [ -x "$(command -v unzip)" ]; then
+        send_notify "unzip not installed"
         exit 1
     fi
     if ! [ -x "$(command -v jq)" ]; then
@@ -669,10 +669,10 @@ check_d2stats_install() {
             rm -f -r "$D2_STATS_BIN_DIR"
             mkdir -p "$D2_STATS_BIN_DIR"
             cd "$D2_STATS_BIN_DIR" || exit 1
-            local rar_file=d2-stats.rar
-            curl -Lk "$d2_stats_url" -o "$rar_file"
-            unrar x "$rar_file"
-            rm "$rar_file"
+            local zipfile="d2-stats.zip"
+            curl -Lk "$d2_stats_url" -o "$zipfile"
+            unzip "$zipfile"
+            rm "$zipfile"
         ) &
         if ! zenity_progress $! "Downloading D2Stats"; then
             rm -f -r "$D2_STATS_BIN_DIR"

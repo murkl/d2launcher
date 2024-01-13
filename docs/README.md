@@ -13,7 +13,7 @@
 - Download latest Median XL patch (incl. notification on new updates)
 - Median XL Version Management
 - Import/Export of savegames
-- [D2 Stats](https://github.com/Kyromyr/D2Stats) included (will download by script)
+- [D2 Stats](https://github.com/Zahariel1942/D2Stats/) included (will download by script)
 - [Sven's Glide wrapper](http://www.svenswrapper.de) included
 - Direct Draw [cnc-ddraw](https://github.com/FunkyFr3sh/cnc-ddraw) supported
 - Diablo II 1.13c files to work with Median XL included
@@ -35,7 +35,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
-  - `sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 xdelta3`
+  - `sudo apt install wine zenity curl p7zip-full unzip jq wmctrl fuse2 xdelta3`
 - Run
   - `./d2launcher`
 
@@ -43,7 +43,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
-  - `sudo apt install wine zenity curl p7zip-full unrar jq wmctrl fuse2 ruby-notify xdelta3`
+  - `sudo apt install wine zenity curl p7zip-full unzip jq wmctrl fuse2 ruby-notify xdelta3`
 - Run
   - `./d2launcher`
 
@@ -77,7 +77,7 @@ gui_height="320"
 
 ```
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
-d2_stats_url="https://github.com/Kyromyr/D2Stats/releases/download/3.11.4/D2Stats-3.11.4.rar"
+d2_stats_url="https://github.com/Zahariel1942/D2Stats/releases/latest/download/D2Stats.zip"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
 ```
 
@@ -197,6 +197,7 @@ Many thanks to these projects:
 - https://median-xl.com
 - https://github.com/Kron4ek/Wine-Builds/
 - https://github.com/Kyromyr/D2Stats
+- https://github.com/Zahariel1942/D2Stats/
 - https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader
 - https://github.com/synthagency/icons-flat-osx
 - http://www.svenswrapper.de
