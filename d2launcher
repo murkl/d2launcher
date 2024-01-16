@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="3.6.5"
+SCRIPT_VERSION="4.0.0"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -46,11 +46,6 @@ WINE_INTERNAL="$WINE_BIN_DIR/bin/wine"
 WINE_INTERNAL_PREFIX="$SCRIPT_HOME/wineprefix"
 WINE_INTERNAL_USER="steamuser" # Proton: "steamuser" | Wine: "$USER"
 
-# Median XL
-MXL_VERSION_URL="http://get.median-xl.com/launcher/?get=versions"
-MXL_DLL_URL="http://get.median-xl.com/launcher/?get=dlls"
-MXL_MOD_URL="http://get.median-xl.com/launcher/?get=mod"
-
 # Diablo II
 D2_CORE_PATCH_FILE="$SCRIPT_RES_DIR/d2-1.13c_files.zip"
 D2_VIDTEST_EXE="D2VidTst.exe"
@@ -94,6 +89,7 @@ d2_args="-3dfx"
 # Script
 update_check="true"
 mxl_update_check="true"
+mxl_update_channel="public" # or beta
 d2_stats_tray="true"
 
 # Gui
@@ -121,10 +117,6 @@ main() {
     fi
     if ! [ -x "$(command -v curl)" ]; then
         send_notify "curl not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v 7z)" ] && ! [ -x "$(command -v 7za)" ]; then
-        send_notify "p7zip not installed"
         exit 1
     fi
     if ! [ -x "$(command -v unzip)" ]; then
@@ -175,6 +167,7 @@ main() {
     config_check_property "gui_height" "$gui_height"
     config_check_property "update_check" "$update_check"
     config_check_property "mxl_update_check" "$mxl_update_check"
+    config_check_property "mxl_update_channel" "$mxl_update_channel"
     config_check_property "d2_stats_tray" "$d2_stats_tray"
 
     # Import config file
@@ -419,32 +412,47 @@ show_gui_update_mxl() {
     rm -f -r "$tmp_dir"
     mkdir -p "$tmp_dir"
 
-    local latest_version_file="$tmp_dir/d2launcher-mxl-latest-patch.json"
-    (curl -sL "$MXL_VERSION_URL" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" " >"$latest_version_file") &
+    local mxl_manifest_json="$tmp_dir/mxl_maninfest.json"
+    (curl -L --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" >"$mxl_manifest_json") &
     if ! zenity_progress $! "Fetching Median XL version infos"; then
         send_notify "No connection to Median XL server"
         return 1
     fi
 
-    local latest_mxl_version
-    latest_mxl_version=$(<"$latest_version_file")
-    if [ "$latest_mxl_version" = "" ]; then
+    local mxl_remote_tag
+    local mxl_remote_location
+    local mxl_remote_channel
+    local mxl_files_length
+    mxl_remote_tag=$(jq -r '.tag' "$mxl_manifest_json")
+    mxl_remote_location=$(jq -r '.location' "$mxl_manifest_json")
+    mxl_remote_channel=$(jq -r '.channel' "$mxl_manifest_json")
+    mxl_files_length=$(jq -r '.files | length' "$mxl_manifest_json")
+
+    if [ "$mxl_remote_tag" = "" ]; then
         send_notify "Error no Median XL version found"
         return 1
     fi
 
     # Check if new mxl version available
-    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$latest_mxl_version.zip" ]; then
+    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$mxl_remote_tag.zip" ]; then
         zenity_info "No Median XL update available"
         return 1
     fi
 
-    local question_text="<big>Median XL Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$latest_mxl_version</b>?"
+    local question_text="<big>Median XL Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$mxl_remote_tag</b>?"
     if ! zenity_question "$question_text"; then
         return 1
     fi
 
-    local new_mxl_patch_prefix="d2launcher-mxl-$latest_mxl_version"
+    # Create remote files array
+    local mxl_remote_files=()
+    for ((i = 0; i < "$mxl_files_length"; i++)); do
+        local mxl_remote_file
+        mxl_remote_file=$(jq -r ".files | .[${i}] | .name" "$mxl_manifest_json")
+        mxl_remote_files+=("$mxl_remote_file")
+    done
+
+    local new_mxl_patch_prefix="d2launcher-mxl-$mxl_remote_tag"
 
     # Create tmp download dir
     local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
@@ -452,32 +460,26 @@ show_gui_update_mxl() {
     cd "$tmp_patch_dir" || exit 1
     # Downloading
     (
-        curl -L "$MXL_DLL_URL" -o "$tmp_patch_dir/dlls.7z"
-        curl -L "$MXL_MOD_URL" -o "$tmp_patch_dir/mod.7z"
+        for mxl_file in "${mxl_remote_files[@]}"; do
+            curl -L --get "${mxl_remote_location}" --data-urlencode "type=${mxl_remote_channel}" --data-urlencode "tag=${mxl_remote_tag}" --data-urlencode "file=${mxl_file}" >"${mxl_file}"
+        done
     ) &
     if ! zenity_progress $! "Downloading $new_mxl_patch_prefix"; then
         zenity_error "Error during download $new_mxl_patch_prefix"
         return 1
     fi
 
-    # Extracting
+    # Create patch file
     (
-        local szip_bin=""
-        [ -x "$(command -v 7z)" ] && szip_bin="7z"
-        [ -x "$(command -v 7za)" ] && szip_bin="7za"
-        $szip_bin e "$tmp_patch_dir/dlls.7z" -aoa
-        $szip_bin e "$tmp_patch_dir/mod.7z" -aoa
-        rm -f "$tmp_patch_dir/dlls.7z"
-        rm -f "$tmp_patch_dir/mod.7z"
         mkdir -p "$MXL_PATCHES_DIR"
         zip -r -0 "$MXL_PATCHES_DIR/$new_mxl_patch_prefix.zip" .
     ) &
-    if ! zenity_progress $! "Creating Median XL $latest_mxl_version patch"; then
-        zenity_error "Error during extract $new_mxl_patch_prefix"
+    if ! zenity_progress $! "Creating Median XL $mxl_remote_tag patch"; then
+        zenity_error "Error creating $new_mxl_patch_prefix patch"
         return 1
     fi
 
-    zenity_info "Median XL $latest_mxl_version successfully downloaded"
+    zenity_info "Median XL $mxl_remote_tag successfully downloaded"
 }
 
 show_gui_mxl_patches() {
@@ -593,18 +595,18 @@ check_update_script() {
 
 check_update_mxl() {
     # Parse mxl patch infos
-    local latest_mxl_version
-    latest_mxl_version=$(curl -sL "$MXL_VERSION_URL" | jq -r '.mod | [.[] ] | .[-1]' | jq -r '.name' | cut -f3 -d" ")
-    if [ "$latest_mxl_version" = "" ]; then
+    local mxl_remote_tag
+    mxl_remote_tag=$(curl -L --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" | jq -r '.tag')
+    if [ "$mxl_remote_tag" = "" ]; then
         send_notify "No connection to Median XL server"
         return 1
     fi
     # Check if new mxl version available
-    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$latest_mxl_version.zip" ]; then
+    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$mxl_remote_tag.zip" ]; then
         echo -e "No Median XL update available"
         return 1
     fi
-    send_notify "New Median XL $latest_mxl_version update available"
+    send_notify "New Median XL $mxl_remote_tag update available"
 }
 
 check_wine_install() {
