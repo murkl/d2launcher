@@ -36,7 +36,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
-  - `sudo apt install wine zenity curl p7zip-full unzip jq wmctrl fuse2 xdelta3`
+  - `sudo apt install wine zenity curl unzip jq wmctrl fuse2 xdelta3`
 - Run
   - `./d2launcher`
 
@@ -44,7 +44,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
-  - `sudo apt install wine zenity curl p7zip-full unzip jq wmctrl fuse2 ruby-notify xdelta3`
+  - `sudo apt install wine zenity curl unzip jq wmctrl fuse2 ruby-notify xdelta3`
 - Run
   - `./d2launcher`
 
@@ -70,9 +70,14 @@ wine_init="gamemoderun"
 d2_stats_tray="true"
 update_check="true"
 mxl_update_check="true"
+mxl_update_channel="public"
 gui_width="420"
 gui_height="320"
 ```
+
+## Median XL Beta
+
+Change the property `mxl_update_channel` from `public` to `beta`.
 
 ## Change Download URL's
 
