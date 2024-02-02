@@ -60,6 +60,10 @@ D2_DDRAW_CONFIG_EXE="cnc-ddraw config.exe"
 # D2Stats
 D2_STATS_BIN_DIR="$SCRIPT_BIN_DIR/d2-stats"
 D2_STATS_EXE="D2Stats.exe"
+D2_STATS_EXE_INI="D2Stats.exe.ini"
+D2_STATS_RULES="NotifierRules"
+D2_STATS_SOUNDS="Sounds"
+D2_STATS_SOUND_TAR="sounds.tar"
 D2_SIGMALOADER_EXE="sigma-loader.exe"
 
 # MXL Patches
@@ -668,6 +672,9 @@ check_d2stats_install() {
             return 1
         fi
         (
+            cd "$D2_STATS_BIN_DIR" || exit 1
+            mv $D2_STATS_RULES $D2_STATS_SOUNDS $D2_STATS_EXE_INI ..
+            cd .. || exit 1
             rm -f -r "$D2_STATS_BIN_DIR"
             mkdir -p "$D2_STATS_BIN_DIR"
             cd "$D2_STATS_BIN_DIR" || exit 1
@@ -675,6 +682,17 @@ check_d2stats_install() {
             curl -Lk "$d2_stats_url" -o "$zipfile"
             unzip "$zipfile"
             rm "$zipfile"
+            mv -fu "../$D2_STATS_RULES" "../$D2_STATS_EXE_INI" .
+            cd "$D2_STATS_SOUNDS"
+            tar cf "$D2_STATS_SOUND_TAR" *
+            mv "$D2_STATS_SOUND_TAR" ..
+            cd ..
+            rm -rf "$D2_STATS_SOUNDS"
+            mv -fu ../$D2_STATS_SOUNDS .
+            cd "$D2_STATS_SOUNDS"
+            mv "../$D2_STATS_SOUND_TAR" .
+            tar xf "$D2_STATS_SOUND_TAR"
+            rm "$D2_STATS_SOUND_TAR"
         ) &
         if ! zenity_progress $! "Downloading D2Stats"; then
             rm -f -r "$D2_STATS_BIN_DIR"
