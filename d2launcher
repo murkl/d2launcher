@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="4.0.0"
+SCRIPT_VERSION="4.0.1"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -63,7 +63,6 @@ D2_STATS_EXE="D2Stats.exe"
 D2_STATS_EXE_INI="D2Stats.exe.ini"
 D2_STATS_RULES="NotifierRules"
 D2_STATS_SOUNDS="Sounds"
-D2_STATS_SOUND_TAR="sounds.tar"
 D2_SIGMALOADER_EXE="sigma-loader.exe"
 
 # MXL Patches
@@ -417,7 +416,7 @@ show_gui_update_mxl() {
     mkdir -p "$tmp_dir"
 
     local mxl_manifest_json="$tmp_dir/mxl_maninfest.json"
-    (curl -L --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" >"$mxl_manifest_json") &
+    (curl -Ls --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" >"$mxl_manifest_json") &
     if ! zenity_progress $! "Fetching Median XL version infos"; then
         send_notify "No connection to Median XL server"
         return 1
@@ -600,7 +599,7 @@ check_update_script() {
 check_update_mxl() {
     # Parse mxl patch infos
     local mxl_remote_tag
-    mxl_remote_tag=$(curl -L --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" | jq -r '.tag')
+    mxl_remote_tag=$(curl -Ls --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" | jq -r '.tag')
     if [ "$mxl_remote_tag" = "" ]; then
         send_notify "No connection to Median XL server"
         return 1
@@ -667,38 +666,50 @@ check_wine_install() {
 }
 
 check_d2stats_install() {
+
     if [ "$1" = "force" ] || [ ! -f "$D2_STATS_BIN_DIR/$D2_STATS_EXE" ]; then
+
         if ! zenity_question "<b>D2Stats</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
+
+        # Backup dir
+        local d2stats_old="$SCRIPT_TEMP_DIR/d2stats-old"
+
         (
-            cd "$D2_STATS_BIN_DIR" || exit 1
-            mv $D2_STATS_RULES $D2_STATS_SOUNDS $D2_STATS_EXE_INI ..
-            cd .. || exit 1
-            rm -f -r "$D2_STATS_BIN_DIR"
+            # Backup old d2stats files (if exists)
+            if [ -d "$D2_STATS_BIN_DIR" ]; then
+                rm -rf "$d2stats_old"
+                mv "$D2_STATS_BIN_DIR" "$d2stats_old"
+            fi
+
+            # Clear d2stats dir
+            rm -rf "$D2_STATS_BIN_DIR"
             mkdir -p "$D2_STATS_BIN_DIR"
             cd "$D2_STATS_BIN_DIR" || exit 1
+
+            # Download & extract d2stats
             local zipfile="d2-stats.zip"
             curl -Lk "$d2_stats_url" -o "$zipfile"
             unzip "$zipfile"
-            rm "$zipfile"
-            mv -fu "../$D2_STATS_RULES" "../$D2_STATS_EXE_INI" .
-            cd "$D2_STATS_SOUNDS"
-            tar cf "$D2_STATS_SOUND_TAR" *
-            mv "$D2_STATS_SOUND_TAR" ..
-            cd ..
-            rm -rf "$D2_STATS_SOUNDS"
-            mv -fu ../$D2_STATS_SOUNDS .
-            cd "$D2_STATS_SOUNDS"
-            mv "../$D2_STATS_SOUND_TAR" .
-            tar xf "$D2_STATS_SOUND_TAR"
-            rm "$D2_STATS_SOUND_TAR"
+            rm -f "$zipfile"
+
+            # Revert files from d2stats backup
+            [ -f "${d2stats_old}/${D2_STATS_EXE_INI}" ] && cp -f "${d2stats_old}/${D2_STATS_EXE_INI}" "${D2_STATS_BIN_DIR}"
+            [ -d "${d2stats_old}/${D2_STATS_RULES}" ] && cp -rf "${d2stats_old}/${D2_STATS_RULES}" "${D2_STATS_BIN_DIR}"
+            [ -d "${d2stats_old}/${D2_STATS_SOUNDS}" ] && cp -rf "${d2stats_old}/${D2_STATS_SOUNDS}" "${D2_STATS_BIN_DIR}"
+            rm -rf "$d2stats_old"
         ) &
+
         if ! zenity_progress $! "Downloading D2Stats"; then
-            rm -f -r "$D2_STATS_BIN_DIR"
+
+            # Revert files
+            rm -rf "$D2_STATS_BIN_DIR"
+            [ -d "$d2stats_old" ] && mv -f "$d2stats_old" "$D2_STATS_BIN_DIR"
             zenity_error "Error during install D2Stats"
             return 1
         fi
+
         zenity_info "D2Stats successfully downloaded"
     fi
 
