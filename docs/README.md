@@ -37,6 +37,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
   - `sudo apt install wine zenity curl unzip jq wmctrl fuse2 xdelta3`
+  - Some distros label fuse2 as libfuse2, if you receive an error about fuse2 not being found, try libfuse2
 - Run
   - `./d2launcher`
 
@@ -45,6 +46,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 - Download & Extract: <a href="https://github.com/murkl/d2launcher/releases/latest"><b>d2launcher.tar.gz</b></a>
 - Install Dependencies
   - `sudo apt install wine zenity curl unzip jq wmctrl fuse2 ruby-notify xdelta3`
+  - Some distros label fuse2 as libfuse2, if you receive an error about fuse2 not being found, try libfuse2
 - Run
   - `./d2launcher`
 
