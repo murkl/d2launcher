@@ -932,7 +932,7 @@ log() {
 }
 
 send_notify() {
-    notify-send -i "$SCRIPT_ICON_FILE" "D2Launcher" "$*"
+    notify-send -a "Diablo II" -i "$SCRIPT_ICON_FILE" "D2Launcher" "$*"
 }
 
 restart_script() {
