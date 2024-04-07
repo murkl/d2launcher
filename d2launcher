@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="4.0.2"
+SCRIPT_VERSION="4.0.3"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -47,11 +47,10 @@ WINE_INTERNAL_PREFIX="$SCRIPT_HOME/wineprefix"
 WINE_INTERNAL_USER="steamuser" # Proton: "steamuser" | Wine: "$USER"
 
 # Diablo II
-D2_CORE_PATCH_FILE="$SCRIPT_RES_DIR/d2-1.13c_files.zip"
+D2_CORE_PATCH_FILE="$SCRIPT_RES_DIR/d2-patch.zip"
 D2_VIDTEST_EXE="D2VidTst.exe"
 
 # Glide Wrapper
-D2_GLIDE_FILE="$SCRIPT_RES_DIR/gl32ogl14e.zip"
 D2_GLIDE_EXE="glide-init.exe"
 
 # cnc-ddraw
@@ -745,24 +744,6 @@ check_d2stats_install() {
     fi
 }
 
-check_glide_wrapper_install() {
-    if [ ! -f "$d2_dir/$D2_GLIDE_EXE" ]; then
-        if ! zenity_question "<b>Glide Wrapper</b> not installed.\n\nInstall now?"; then
-            return 1
-        fi
-        if [ ! -f "$D2_GLIDE_FILE" ]; then
-            zenity_error "$D2_GLIDE_FILE not found!"
-            return 1
-        fi
-        (unzip -o "$D2_GLIDE_FILE" -d "$d2_dir") &
-        if ! zenity_progress $! "Installing Glide Wrapper"; then
-            zenity_error "Error during install Glide Wrapper"
-            return 1
-        fi
-        zenity_info "Glide Wrapper successfully installed"
-    fi
-}
-
 check_patch_installation() {
     if [ ! -f "$d2_dir/$MXL_PATCH_VERSION" ]; then
         if ! zenity_question "<b>No patch installed!</b>\n\nStart Diablo II anyway?"; then
@@ -804,7 +785,6 @@ exec_wine_exe() {
 
 exec_diablo2() {
     check_d2_dir || return 1
-    check_glide_wrapper_install || return 1
     check_wine_install || return 1
     check_patch_installation || return 1
     if pgrep -x "$D2_STATS_EXE" >/dev/null; then
@@ -848,7 +828,6 @@ exec_d2stats() {
 
 exec_glide_settings() {
     check_d2_dir || return 1
-    check_glide_wrapper_install || return 1
     check_wine_install || return 1
     if [ ! -f "$d2_dir/$D2_GLIDE_EXE" ]; then
         zenity_error "$d2_dir/$D2_GLIDE_EXE not found"
