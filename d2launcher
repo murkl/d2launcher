@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="4.0.1"
+SCRIPT_VERSION="4.0.2"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -97,7 +97,7 @@ d2_stats_tray="true"
 
 # Gui
 gui_width="450"
-gui_height="350"
+gui_height="380"
 gui_font="monospace"
 gui_color="#87270A"
 gui_size="9"
@@ -512,6 +512,11 @@ show_gui_mxl_patches() {
         echo -e "No patch file selected"
         return 1
     fi
+
+    # Remove patched files from d2 dir
+    mapfile -t patched_files < <(zipinfo -1 "${MXL_PATCHES_DIR}/$(<"$d2_dir/$MXL_PATCH_VERSION").zip")
+    for item in "${patched_files[@]}"; do rm -f "${d2_dir}/${item}"; done
+
     (
         # Patching Diablo II core data
         unzip -o "$D2_CORE_PATCH_FILE" -d "$d2_dir"
