@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION="4.0.4"
+SCRIPT_VERSION="4.0.5"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -528,14 +528,11 @@ show_gui_mxl_patches() {
         fi
 
         # Patching Diablo II core data
-        unzip -o "$D2_CORE_PATCH_FILE" -d "$d2_dir"
+        unzip -o "$D2_CORE_PATCH_FILE" -d "$d2_dir" -x "${mxl_update_exclude[@]}"
 
         # Patching content of patch file to Diablo II dir
-        if [ -z "${mxl_update_exclude[*]}" ]; then
-            unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$d2_dir"
-        else
-            unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$d2_dir" -x "${mxl_update_exclude[@]}"
-        fi
+        unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$d2_dir" -x "${mxl_update_exclude[@]}"
+
         echo "$patch_filename" >"$d2_dir/$MXL_PATCH_VERSION"
 
     ) &
