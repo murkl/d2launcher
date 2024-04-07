@@ -62,6 +62,11 @@ All files are located here: `~/.d2launcher`. Simply copy & paste to another syst
 
 The logging file is `~/.d2launcher/d2launcher.log` and is **not** rotated. This contains only logs from execution of Diablo II.
 
+## Exclude files from update patch
+
+Add this array property to exclude files from update
+`mxl_update_exclude=("file1" "file2")`
+
 ## Example `d2launcher.conf`
 
 ```
@@ -75,6 +80,7 @@ mxl_update_check="true"
 mxl_update_channel="public"
 gui_width="420"
 gui_height="320"
+mxl_update_exclude=("cnc-ddraw config.exe" "ddraw.dll")
 ```
 
 ## Median XL Beta
