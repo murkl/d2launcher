@@ -38,7 +38,7 @@ SCRIPT_BIN_DIR="$SCRIPT_HOME_DIR/bin"
 SCRIPT_BACKUP_DIR="$SCRIPT_HOME_DIR/backup"
 
 SCRIPT_CONFIG_FILE="$SCRIPT_HOME_DIR/d2launcher.conf"
-SCRIPT_TWEAKS_FILE="$SCRIPT_HOME_DIR/d2launcher.tweaks"
+SCRIPT_TWEAKS_FILE="$SCRIPT_HOME_DIR/tweaks.db"
 SCRIPT_LOG_FILE="$SCRIPT_HOME_DIR/d2launcher.log"
 SCRIPT_TEMP_DIR="$(mktemp -d "$HOME/.cache/d2launcher.XXXX")"
 SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
@@ -82,7 +82,7 @@ MXL_PATCH_VERSION_FILENAME="d2launcher-patch.version"
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
 d2_stats_url="https://github.com/Zahariel1942/D2Stats/releases/latest/download/D2Stats.zip"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
-tweaks_url="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/d2launcher.tweaks"
+tweaks_url="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/tweaks.db"
 
 # Wine
 wine_default="$WINE_NATIVE_BIN"
@@ -464,7 +464,7 @@ show_tweaks_menu() {
 
     # View source?
     if zenity_question "View Sourcecode from <b>${result}</b> Script?"; then
-        zenity --text-info --width="800" --height="600" --title="${result}" --ok-label="Continue" --cancel-label="Cancel" --font="monospace" --filename="$tweak_file" || return 1
+        zenity --text-info --width="800" --height="600" --title="Source: ${result}" --ok-label="Continue" --cancel-label="Cancel" --font="monospace" --filename="$tweak_file" || return 1
     fi
 
     # Install tweak?
@@ -693,23 +693,23 @@ show_gui_mxl_patches() {
 
 show_gui_update_tweaks_db() {
     if [[ "$tweaks_url" = "http"* ]]; then # Download
-        (curl -sLf "$tweaks_url" >"${SCRIPT_TEMP_DIR}/d2launcher.tweaks" || rm "${SCRIPT_TEMP_DIR}/d2launcher.tweaks") &
-        if ! zenity_progress $! "Downloading d2launcher.tweaks"; then
+        (curl -sLf "$tweaks_url" >"${SCRIPT_TEMP_DIR}/tweaks.db" || rm "${SCRIPT_TEMP_DIR}/tweaks.db") &
+        if ! zenity_progress $! "Downloading tweaks.db"; then
             zenity_error "Error during download $tweaks_url"
             return 1
         fi
-        [ ! -f "${SCRIPT_TEMP_DIR}/d2launcher.tweaks" ] && zenity_error "Error downloading ${tweaks_url}" && return 1
+        [ ! -f "${SCRIPT_TEMP_DIR}/tweaks.db" ] && zenity_error "Error downloading ${tweaks_url}" && return 1
     else # Or copy if variable is set to local file
-        cp -f "$tweaks_url" "${SCRIPT_TEMP_DIR}/d2launcher.tweaks"
-        [ ! -f "${SCRIPT_TEMP_DIR}/d2launcher.tweaks" ] && zenity_error "Error copy ${tweaks_url}" && return 1
+        cp -f "$tweaks_url" "${SCRIPT_TEMP_DIR}/tweaks.db"
+        [ ! -f "${SCRIPT_TEMP_DIR}/tweaks.db" ] && zenity_error "Error copy ${tweaks_url}" && return 1
     fi
 
-    if ! [[ "$(sed '/^[[:space:]]*$/d' "${SCRIPT_TEMP_DIR}/d2launcher.tweaks" | head -n 1 | awk '{print $1}')" == "###!"* ]]; then
+    if ! [[ "$(sed '/^[[:space:]]*$/d' "${SCRIPT_TEMP_DIR}/tweaks.db" | head -n 1 | awk '{print $1}')" == "###!"* ]]; then
         zenity_error "No correct syntax format"
         exit 1
     fi
 
-    cp -f "${SCRIPT_TEMP_DIR}/d2launcher.tweaks" "$SCRIPT_TWEAKS_FILE"
+    cp -f "${SCRIPT_TEMP_DIR}/tweaks.db" "$SCRIPT_TWEAKS_FILE"
     send_notify "Tweaks Databse successfully updated"
 }
 

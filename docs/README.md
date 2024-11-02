@@ -82,7 +82,7 @@ mxl_update_channel="public"
 mxl_update_exclude=("cnc-ddraw config.exe" "ddraw.dll")
 gui_width="420"
 gui_height="320"
-tweaks_url="https://my/custom/tweaks/url/to/d2launcher.tweaks"
+tweaks_url="https://my/custom/tweaks/url/to/tweaks.db"
 ```
 
 ## Median XL Beta
@@ -95,7 +95,7 @@ Change the property `mxl_update_channel` from `public` to `beta`.
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
 d2_stats_url="https://github.com/Zahariel1942/D2Stats/releases/latest/download/D2Stats.zip"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
-tweaks_url="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/d2launcher.tweaks"
+tweaks_url="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/tweaks.db"
 ```
 
 **Note:** If you change the URLs, you have to force the regarding update/install: `Update Manger` > `Force Proton Update`/`Force D2Stats Update`
@@ -168,27 +168,29 @@ No sound                   | -ns
 
 **Note:** Add multiple arguments with `-ddraw -skiptobnet ...`
 
-## Tweaks
+## User Tweaks
 
 Open `Tweaks` in the main menu and select the desired tweak script that you want to install.
 
 ### Update Tweaks Database
 
-To update this shown tweak list, goto `Update Manager` > `Update Tweaks Database`. The file set in the `tweaks_url` property will be downloaded to `~/.d2launcher/d2launcher.tweaks` (or copied if `tweaks_url` is set to a local file).
+To update this shown tweak list, goto `Update Manager` > `Update Tweaks Database`. The file set in the `tweaks_url` property will be downloaded to `~/.d2launcher/tweaks.db` (or copied if `tweaks_url` is set to a local file).
 
-### Share your own Tweaks
+### Share your own Tweaks Database
 
-You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/d2lanauncher.tweaks` from `tweaks_url`.
+You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/tweaks.db` from `tweaks_url`.
 
 **Note:** Feel free to open a PR and merge your tweaks into d2launcher as a PR.
 
-### Example Tweak Database Syntax
+### Tweaks Database Syntax
 
 Separated by the two header lines `###!> name: ...` and `###!> version ...` (please keep this order), all tweak scripts are saved in one file.
 
-You already have access to variables from `d2launcher.conf`.
+The working directory is a generated temporary directory and is deleted after termination. You have access to the variables from `d2launcher.conf` within the tweaks script.
 
 **Note: Root access is not supported!**
+
+<sub>tweaks.db:</sub>
 
 ```
 ###!> name: my_first_tweak_script
@@ -209,7 +211,7 @@ echo "Another plugin"
 echo "..."
 ```
 
-## Glide Wrapper Settings
+## Glide Wrapper Settings (deprecated)
 
 Change in `Settings` > `Glide Wrapper Settings` (optional)
 
