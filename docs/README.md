@@ -176,12 +176,6 @@ Open `Tweaks` in the main menu and select the desired tweak script that you want
 
 To update this shown tweak list, goto `Update Manager` > `Update Tweaks Database`. The file set in the `tweaks_url` property will be downloaded to `~/.d2launcher/tweaks.db` (or copied if `tweaks_url` is set to a local file).
 
-### Share your own Tweaks Database
-
-You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/tweaks.db` from `tweaks_url`.
-
-**Note:** Feel free to open a PR and merge your tweaks into d2launcher as a PR.
-
 ### Tweaks Database Syntax
 
 Separated by the two header lines `###!> name: ...` and `###!> version ...` (please keep this order), all tweak scripts are saved in one file.
@@ -210,6 +204,12 @@ echo "..."
 ```
 
 **Note: Root access is not supported!**
+
+### Share your own Tweaks Database
+
+You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/tweaks.db` from `tweaks_url`.
+
+**Note:** Feel free to open a PR and merge your tweaks into d2launcher as a PR.
 
 ## Glide Wrapper Settings (deprecated)
 

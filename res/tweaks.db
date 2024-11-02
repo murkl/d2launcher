@@ -1,13 +1,9 @@
 ###!> name: FunkyFr3sh/cnc-ddraw
 ###!> version: latest
-
-#!/bin/bash
 echo "Diablo II Directory: $d2_dir"
 echo "Example Template. TODO..."
 
 ###!> name: GavinK88/d2gl-mxl
 ###!> version: latest
-
-#!/bin/bash
 echo "Diablo II Directory: $d2_dir"
 echo "Example Template. TODO..."
