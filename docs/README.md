@@ -60,7 +60,7 @@ All files are located here: `~/.d2launcher`. Simply copy & paste to another syst
 
 ## Logging
 
-The logging file is `~/.d2launcher/d2launcher.log` and is **not** rotated. This contains only logs from execution of Diablo II.
+The logging file is `~/.d2launcher/d2launcher.log` and **is** rotated on every start of d2launcher. This contains only logs from execution of Diablo II.
 
 ## Exclude files from update patch
 
@@ -78,9 +78,10 @@ d2_stats_tray="true"
 update_check="true"
 mxl_update_check="true"
 mxl_update_channel="public"
+mxl_update_exclude=("cnc-ddraw config.exe" "ddraw.dll")
 gui_width="420"
 gui_height="320"
-mxl_update_exclude=("cnc-ddraw config.exe" "ddraw.dll")
+tweaks_url="https://my/custom/tweaks/url/to/d2launcher.tweaks"
 ```
 
 ## Median XL Beta
@@ -93,6 +94,7 @@ Change the property `mxl_update_channel` from `public` to `beta`.
 wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/6.3-7-proton/wine-6.3-7-proton-amd64.tar.xz"
 d2_stats_url="https://github.com/Zahariel1942/D2Stats/releases/latest/download/D2Stats.zip"
 d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/download/3/sigma-loader.exe"
+tweaks_url="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/d2launcher.tweaks"
 ```
 
 **Note:** If you change the URLs, you have to force the regarding update/install: `Update Manger` > `Force Proton Update`/`Force D2Stats Update`
@@ -223,3 +225,4 @@ Many thanks to these projects:
 - https://github.com/synthagency/icons-flat-osx
 - http://www.svenswrapper.de
 - https://github.com/FunkyFr3sh/cnc-ddraw
+- https://github.com/GavinK88/d2gl-mxl-1.0
