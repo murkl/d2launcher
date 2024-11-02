@@ -175,6 +175,16 @@ main() {
         restart_script
     fi
 
+    # Migration from old d2launcher desktop file
+    if [ -f "$HOME/.local/share/applications/d2launcher.desktop" ]; then
+        if ! zenity_question "<big>D2Launcher Auto Migration</big>\n\nYou have to migrate your d2launcher.desktop.\n\nMove to <b>d2launcher-local.desktop</b>?"; then
+            exit 1
+        fi
+        mv -f "$HOME/.local/share/applications/d2launcher.desktop" "$HOME/.local/share/applications/d2launcher.local.desktop"
+        zenity_info "d2launcher.desktop successfully migrated"
+        restart_script
+    fi
+
     # Create Config
     if [ ! -f "$SCRIPT_CONFIG_FILE" ]; then
         touch "$SCRIPT_CONFIG_FILE"
@@ -216,12 +226,9 @@ main() {
         cd "$WORKING_DIR" || { zenity_error "Cannot access $WORKING_DIR" && exit 1; }
 
         # Handle Desktop Files
-        local user_desktop_file="$HOME/.local/share/applications/d2launcher.desktop"
-        if [ -f /usr/share/applications/d2launcher.desktop ]; then
-            # If installed systemwide remove users desktop file
-            if [ -f "$user_desktop_file" ]; then rm -f "$user_desktop_file"; fi
-        else
-            # If d2launcher not installed create user desktop file
+        mkdir -p "$HOME/.local/share/applications"
+        desktop_file_local="$HOME/.local/share/applications/d2launcher.local.desktop"
+        if [ "$SCRIPT_INSTALLED_ARCH" = "false" ] && [ ! -f "$desktop_file_local" ]; then
             {
                 echo "[Desktop Entry]"
                 echo "Name=Diablo II"
@@ -230,7 +237,7 @@ main() {
                 echo "Type=Application"
                 echo "Terminal=false"
                 echo "StartupWMClass=zenity"
-            } >"$user_desktop_file"
+            } >"$desktop_file_local"
         fi
 
         # Show main menu
@@ -1064,7 +1071,7 @@ exec_d2_video_settings() {
 # /////////////////////////////////////////////////////
 
 zenity() {
-    /usr/bin/zenity --title="" --window-icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@" 2>/dev/null
+    /usr/bin/zenity --title="" --icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@"
 }
 
 zenity_dialog() {
