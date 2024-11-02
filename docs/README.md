@@ -180,6 +180,8 @@ To update this shown tweak list, goto `Update Manager` > `Update Tweaks Database
 
 You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/d2lanauncher.tweaks` from `tweaks_url`.
 
+**Note:** Feel free to open a PR and merge your tweaks into d2launcher as a PR.
+
 ### Example Tweak Database Syntax
 
 Separated by the two header lines `###!> name: ...` and `###!> version ...` (please keep this order), all tweak scripts are saved in one file.

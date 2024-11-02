@@ -123,6 +123,10 @@ gui_dialog_size="9"
 main() {
 
     # Check Dependencies
+    if ! [ -x "$(command -v /bin/notify-send)" ]; then
+        echo "notify-send not installed"
+        exit 1
+    fi
     if ! [ -x "$(command -v /bin/zenity)" ]; then
         send_notify "zenity not installed"
         exit 1
@@ -149,10 +153,10 @@ main() {
     fi
 
     # Create Script Dirs
-    mkdir -p "$SCRIPT_HOME_DIR" || exit 1
-    mkdir -p "$SCRIPT_BIN_DIR" || exit 1
-    mkdir -p "$SCRIPT_BACKUP_DIR" || exit 1
-    mkdir -p "$SCRIPT_TEMP_DIR" || exit 1
+    mkdir -p "$SCRIPT_HOME_DIR" || { echo "Error creating ${SCRIPT_HOME_DIR}" && exit 1; }
+    mkdir -p "$SCRIPT_BIN_DIR" || { echo "Error creating ${SCRIPT_BIN_DIR}" && exit 1; }
+    mkdir -p "$SCRIPT_BACKUP_DIR" || { echo "Error creating ${SCRIPT_BACKUP_DIR}" && exit 1; }
+    mkdir -p "$SCRIPT_TEMP_DIR" || { echo "Error creating ${SCRIPT_TEMP_DIR}" && exit 1; }
 
     # Rotate logfile
     [ -f "$SCRIPT_LOG_FILE" ] && mv -f "$SCRIPT_LOG_FILE" "${SCRIPT_BACKUP_DIR}/d2launcher.log.old"
@@ -199,10 +203,17 @@ main() {
         check_update_mxl &
     fi
 
+    # If Diablo II exe exists and no backup file can be found
+    if [ -f "${d2_dir}/${d2_exe}" ] && [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
+        show_gui_create_backup
+    fi
+
+    echo "Startup finished" | log
+
     # Main Menu
     while (true); do
 
-        cd "$WORKING_DIR" || exit 1
+        cd "$WORKING_DIR" || { zenity_error "Cannot access $WORKING_DIR" && exit 1; }
 
         # Handle Desktop Files
         local user_desktop_file="$HOME/.local/share/applications/d2launcher.desktop"
@@ -220,11 +231,6 @@ main() {
                 echo "Terminal=false"
                 echo "StartupWMClass=zenity"
             } >"$user_desktop_file"
-        fi
-
-        # If Diablo II exe exists and no backup file can be found
-        if [ -f "${d2_dir}/${d2_exe}" ] && [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
-            show_gui_create_backup
         fi
 
         # Show main menu
@@ -394,7 +400,7 @@ show_tweaks_menu() {
     # Clear and recreate temporary directory for tweaks
     rm -rf "${SCRIPT_TEMP_DIR}/tweaks"
     mkdir -p "${SCRIPT_TEMP_DIR}/tweaks"
-    cd "${SCRIPT_TEMP_DIR}/tweaks" || exit 1
+    cd "${SCRIPT_TEMP_DIR}/tweaks" || { zenity_error "Can not access ${SCRIPT_TEMP_DIR}/tweaks" && exit 1; }
 
     # Initialize variables and arrays
     local name version content clean_name
@@ -438,15 +444,22 @@ show_tweaks_menu() {
     fi
     [ "$result" = "" ] && return 1
 
-    # Really install tweak?
+    local tweak_file tweak_log
+    tweak_file="${SCRIPT_TEMP_DIR}/tweaks/$(print_clean_filename "$result").sh"
+
+    tweak_log="${tweak_file}.log"
+
+    # View source?
+    if zenity_question "View Sourcecode from <b>${result}</b> Script?"; then
+        zenity --text-info --width="800" --height="600" --title="${result}" --ok-label="Continue" --cancel-label="Cancel" --font="monospace" --filename="$tweak_file" || return 1
+    fi
+
+    # Install tweak?
     if ! zenity_question "Install <b>${result}</b>?"; then
         return 1
     fi
 
     # Run tweak script in temp as working dir
-    local tweak_file tweak_log
-    tweak_file="${SCRIPT_TEMP_DIR}/tweaks/$(print_clean_filename "$result").sh"
-    tweak_log="${tweak_file}.log"
     (
         echo "// Install ${result}..."
         chmod +x "${tweak_file}"
@@ -584,7 +597,7 @@ show_gui_update_mxl() {
     # Create tmp download dir
     local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
     mkdir -p "$tmp_patch_dir"
-    cd "$tmp_patch_dir" || exit 1
+    cd "${SCRIPT_TEMP_DIR}/tweaks" || { zenity_error "Can not access ${tmp_patch_dir}" && exit 1; }
     # Downloading
     (
         for mxl_file in "${mxl_remote_files[@]}"; do
@@ -622,7 +635,7 @@ show_gui_mxl_patches() {
     fi
 
     # List patch files
-    cd "$MXL_PATCHES_DIR" || exit 1
+    cd "$MXL_PATCHES_DIR" || { zenity_error "Can not access ${MXL_PATCHES_DIR}" && exit 1; }
     if ! patch_filename=$(find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity_menu "Median XL Patches" "Back" "Patch"); then
         if [ "$patch_filename" = "?" ]; then
             show_gui_help
@@ -710,7 +723,7 @@ show_gui_create_backup() {
     if zenity_question "<big>Diablo II Backup</big>${text_new}\n\nCreate <b>Diablo II Backup</b> now?"; then
         (
             # Create backup from diablo2 dir
-            cd "$SCRIPT_BIN_DIR" || exit 1
+            cd "$SCRIPT_BIN_DIR" || { zenity_error "Can not access ${SCRIPT_BIN_DIR}" && exit 1; }
             tar -cvf diablo2.backup.tar diablo2/ || rm -f diablo2.backup.tar
             mv -f ./diablo2.backup.tar "$D2_BACKUP_TAR_FILE"
         ) &
@@ -727,7 +740,7 @@ show_gui_restore_backup() {
         zenity_error "Error: $D2_BACKUP_TAR_FILE no found"
         return 1
     else
-        local text_new='Backup was found!' && [ -f "${d2_dir}/${d2_exe}" ] && text_new="This will REMOVE all data in ${d2_dir}."
+        local text_new='Backup was found!' && [ -f "${d2_dir}/${d2_exe}" ] && text_new="This will REMOVE all data in '${d2_dir}'."
         if zenity_question "<big>Restore Diablo II Backup</big>\n\n${text_new}\n\nRestore <b>Diablo II Backup</b> now?"; then
             (
                 # Restore bin/diablo2 from backup
@@ -767,7 +780,7 @@ show_gui_export_savegames() {
     fi
     local filename
     filename="d2launcher-mxl-save-$(date "+%Y-%m-%d-%H%M").zip"
-    cd "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL" || exit 1
+    cd "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL" || { zenity_error "Can not access mxl app data" && exit 1; }
     zip -r -0 "$directory/$filename" .
     zenity_info "Savegames successfully exported:\n\n$directory/$filename"
 }
@@ -884,7 +897,7 @@ check_d2stats_install() {
             # Clear d2stats dir
             rm -rf "$D2_STATS_BIN_DIR"
             mkdir -p "$D2_STATS_BIN_DIR"
-            cd "$D2_STATS_BIN_DIR" || exit 1
+            cd "$D2_STATS_BIN_DIR" || { zenity_error "Can not access ${D2_STATS_BIN_DIR}" && exit 1; }
 
             # Download & extract d2stats
             local zipfile="d2-stats.zip"
