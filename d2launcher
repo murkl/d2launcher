@@ -549,7 +549,7 @@ show_gui_update_script() {
         cp -f -R "$tmp_dir/$unziped_dir/"* "$WORKING_DIR"
         chmod +x "$SCRIPT_FILE"
     ) &
-    if ! zenity_progress $! "Installing D2Launcher $latest_version"; then
+    if ! zenity_progress $! "Installing D2Launcher $latest_version" --no-cancel; then
         zenity_error "Error during install D2Launcher $latest_version"
         return 1
     fi
@@ -684,7 +684,7 @@ show_gui_mxl_patches() {
         echo "$patch_filename" >"$d2_dir/$MXL_PATCH_VERSION_FILENAME"
 
     ) &
-    if ! zenity_progress $! "Patching $patch_filename"; then
+    if ! zenity_progress $! "Patching $patch_filename" --no-cancel; then
         zenity_error "Error during patch $patch_filename"
         return 1
     fi
