@@ -106,13 +106,13 @@ mxl_update_exclude=()
 
 # Gui
 gui_width="450"
-gui_height="380"
-gui_font="monospace"
+gui_height="420"
+gui_font="Monospace"
 gui_color="#87270A"
 gui_size="9"
 gui_dialog_width="340"
 gui_dialog_height="160"
-gui_dialog_font="monospace"
+gui_dialog_font="Monospace"
 gui_dialog_color="#3e3e3e"
 gui_dialog_size="9"
 
@@ -1122,8 +1122,8 @@ zenity_menu() {
         # Read installed Median XL version
         mxl_version_info_text=$(rev <"$d2_dir/$MXL_PATCH_VERSION_FILENAME" | cut -f 1 -d '-' | rev)
     fi
-    local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'">\t\t<b>D2LAUNCHER • MEDIAN XL</b></span>'
-    local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'">\t\t     <b>'$SCRIPT_VERSION' • '$mxl_version_info_text'</b></span>'
+    local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'"><b>D2LAUNCHER | '$SCRIPT_VERSION'</b></span>'
+    local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>MEDIAN XL  | '$mxl_version_info_text'</b></span>'
     zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --extra-button="?" --text="$text_1_styled\n$text_2_styled\n" --column="$menu_text" "$@"
 }
 
