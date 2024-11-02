@@ -187,20 +187,12 @@ The working directory is a generated temporary directory and is deleted after te
 ```
 ###!> name: my_first_tweak_script
 ###!> version: 1.0.0
-
-#!/bin/bash
-echo "Install my_first_tweak_script"
 echo "Diablo II Directory: $d2_dir"
-echo "Here I can use my bash code to pimp my Diablo II"
-echo "..."
+echo "You can use bash code to pimp your Diablo II here..."
 
 ###!> name: my_second_tweak_script
 ###!> version: latest
-
-#!/bin/bash
-echo "Install my_second_tweak_script"
-echo "Another plugin"
-echo "..."
+echo "Do another plugin stuff..."
 ```
 
 **Note: Root access is not supported!**
