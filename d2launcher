@@ -177,7 +177,7 @@ main() {
 
     # Migration from old d2launcher desktop file
     if [ -f "$HOME/.local/share/applications/d2launcher.desktop" ]; then
-        if ! zenity_question "<big>D2Launcher Auto Migration</big>\n\nYou have to migrate your d2launcher.desktop.\n\nMove to <b>d2launcher-local.desktop</b>?"; then
+        if ! zenity_question "<big>D2Launcher Auto Migration</big>\n\nYou have to migrate your d2launcher.desktop.\n\nMove to <b>d2launcher.local.desktop</b>?"; then
             exit 1
         fi
         mv -f "$HOME/.local/share/applications/d2launcher.desktop" "$HOME/.local/share/applications/d2launcher.local.desktop"
@@ -218,27 +218,33 @@ main() {
         show_gui_create_backup
     fi
 
+    # Handle Desktop Files
+    mkdir -p "$HOME/.local/share/applications"
+    desktop_file_local="$HOME/.local/share/applications/d2launcher.local.desktop"
+    if [ "$SCRIPT_INSTALLED_ARCH" = "true" ] && [ -f "$desktop_file_local" ]; then
+        if zenity_question "<big>D2Launcher Desktop Starter File</big>\n\nYou local desktop file still exists.\n\nRemove <b>d2launcher.local.desktop</b>?"; then
+            rm -f "$desktop_file_local"
+        fi
+    fi
+
+    if [ "$SCRIPT_INSTALLED_ARCH" = "false" ] && [ ! -f "$desktop_file_local" ]; then
+        {
+            echo "[Desktop Entry]"
+            echo "Name=Diablo II"
+            echo "Icon=$SCRIPT_ICON_FILE"
+            echo "Exec=\"$SCRIPT_FILE\""
+            echo "Type=Application"
+            echo "Terminal=false"
+            echo "StartupWMClass=zenity"
+        } >"$desktop_file_local"
+    fi
+
     echo "Startup finished" | log
 
     # Main Menu
     while (true); do
 
         cd "$WORKING_DIR" || { zenity_error "Cannot access $WORKING_DIR" && exit 1; }
-
-        # Handle Desktop Files
-        mkdir -p "$HOME/.local/share/applications"
-        desktop_file_local="$HOME/.local/share/applications/d2launcher.local.desktop"
-        if [ "$SCRIPT_INSTALLED_ARCH" = "false" ] && [ ! -f "$desktop_file_local" ]; then
-            {
-                echo "[Desktop Entry]"
-                echo "Name=Diablo II"
-                echo "Icon=$SCRIPT_ICON_FILE"
-                echo "Exec=\"$SCRIPT_FILE\""
-                echo "Type=Application"
-                echo "Terminal=false"
-                echo "StartupWMClass=zenity"
-            } >"$desktop_file_local"
-        fi
 
         # Show main menu
         show_main_menu
