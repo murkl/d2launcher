@@ -8,7 +8,8 @@
 
 # Features
 
-- Simple Backup & Restore
+- Simple Backup & Restore (Savegames & Diablo II Installation)
+- User Tweaks (Auto Install Scripts for Plugins etc.)
 - Custom Proton (64 Bit) build will download by script
 - Download latest Median XL patch (incl. notification on new updates)
 - Median XL Version Management
@@ -166,6 +167,45 @@ No sound                   | -ns
 ```
 
 **Note:** Add multiple arguments with `-ddraw -skiptobnet ...`
+
+## Tweaks
+
+Open `Tweaks` in the main menu and select the desired tweak script that you want to install.
+
+### Update Tweaks Database
+
+To update this shown tweak list, goto `Update Manager` > `Update Tweaks Database`. The file set in the `tweaks_url` property will be downloaded to `~/.d2launcher/d2launcher.tweaks` (or copied if `tweaks_url` is set to a local file).
+
+### Share your own Tweaks
+
+You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/d2lanauncher.tweaks` from `tweaks_url`.
+
+### Example Tweak Database Syntax
+
+Separated by the two header lines `###!> name: ...` and `###!> version ...` (please keep this order), all tweak scripts are saved in one file.
+
+You already have access to variables from `d2launcher.conf`.
+
+**Note: Root access is not supported!**
+
+```
+###!> name: my_first_tweak_script
+###!> version: 1.0.0
+
+#!/bin/bash
+echo "Install my_first_tweak_script"
+echo "Diablo II Directory: $d2_dir"
+echo "Here I can use my bash code to pimp my Diablo II"
+echo "..."
+
+###!> name: my_second_tweak_script
+###!> version: latest
+
+#!/bin/bash
+echo "Install my_second_tweak_script"
+echo "Another plugin"
+echo "..."
+```
 
 ## Glide Wrapper Settings
 

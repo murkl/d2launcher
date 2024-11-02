@@ -1,11 +1,13 @@
 ###!> name: FunkyFr3sh/cnc-ddraw
 ###!> version: latest
 
-echo "Install FunkyFr3sh/cnc-ddraw"
+#!/bin/bash
+echo "Diablo II Directory: $d2_dir"
 echo "TODO..."
 
 ###!> name: GavinK88/d2gl-mxl
 ###!> version: latest
 
-echo "Install GavinK88/d2gl-mxl"
+#!/bin/bash
+echo "Diablo II Directory: $d2_dir"
 echo "TODO..."
