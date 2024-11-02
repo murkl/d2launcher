@@ -188,8 +188,6 @@ Separated by the two header lines `###!> name: ...` and `###!> version ...` (ple
 
 The working directory is a generated temporary directory and is deleted after termination. You have access to the variables from `d2launcher.conf` within the tweaks script.
 
-**Note: Root access is not supported!**
-
 <sub><b>Example `tweaks.db`:</b></sub>
 
 ```
@@ -210,6 +208,8 @@ echo "Install my_second_tweak_script"
 echo "Another plugin"
 echo "..."
 ```
+
+**Note: Root access is not supported!**
 
 ## Glide Wrapper Settings (deprecated)
 
