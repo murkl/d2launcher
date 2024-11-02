@@ -55,20 +55,7 @@ You need the Diablo II installation files for the script to work! (You will be a
 
 You can override the script properties in the configuration settings (`Settings` > `Edit Configuration`). These settings can be edited manually in `~/.d2launcher/d2launcher.conf`.
 
-## Backup & Restore
-
-All files are located here: `~/.d2launcher`. Simply copy & paste to another system. Feel free to move your Diablo II installation dir to `~/.d2launcher/bin/diablo2` to backup all files together.
-
-## Logging
-
-The logging file is `~/.d2launcher/d2launcher.log` and **is** rotated on every start of d2launcher. This contains only logs from execution of Diablo II.
-
-## Exclude files from update patch
-
-Add this array property to exclude files from update
-`mxl_update_exclude=("file1" "file2")`
-
-## Example `d2launcher.conf`
+<sub><b>Example `d2launcher.conf`:</b></sub>
 
 ```
 d2_dir="$HOME/.d2launcher/bin/diablo2"
@@ -84,6 +71,19 @@ gui_width="420"
 gui_height="320"
 tweaks_url="https://my/custom/tweaks/url/to/tweaks.db"
 ```
+
+## Backup & Restore
+
+All files are located here: `~/.d2launcher`. Simply copy & paste to another system. Feel free to move your Diablo II installation dir to `~/.d2launcher/bin/diablo2` to backup all files together.
+
+## Logging
+
+The logging file is `~/.d2launcher/d2launcher.log` and **is** rotated on every start of d2launcher. This contains only logs from execution of Diablo II.
+
+## Exclude files from update patch
+
+Add this array property to exclude files from update
+`mxl_update_exclude=("file1" "file2")`
 
 ## Median XL Beta
 
@@ -190,7 +190,7 @@ The working directory is a generated temporary directory and is deleted after te
 
 **Note: Root access is not supported!**
 
-<sub>tweaks.db:</sub>
+<sub><b>Example `tweaks.db`:</b></sub>
 
 ```
 ###!> name: my_first_tweak_script
