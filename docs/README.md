@@ -73,7 +73,7 @@ tweaks_url="https://my/custom/tweaks/url/to/tweaks.db"
 
 ## Backup & Restore
 
-All files are located here: `~/.d2launcher`. Simply copy & paste to another system. Feel free to move your Diablo II installation dir to `~/.d2launcher/bin/diablo2` to backup all files together.
+All files are located here: `~/.d2launcher`. Simply copy & paste to another system. The Diablo II binary files are stored here `~/.d2launcher/bin/diablo2`.
 
 ## Logging
 
