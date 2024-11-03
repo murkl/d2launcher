@@ -404,12 +404,12 @@ show_tweaks_menu() {
     # Download tweaks db from URL (if not exists)
     [ ! -f "$SCRIPT_TWEAKS_FILE" ] && ! show_gui_update_tweaks_db && return 1
 
+    # Check syntax
     if ! [[ "$(sed '/^[[:space:]]*$/d' "${SCRIPT_TWEAKS_FILE}" | head -n 1 | awk '{print $1}')" == "###!"* ]]; then
         zenity_error "No correct syntax format"
         exit 1
     fi
 
-    # 2.
     # Clear and recreate temporary directory for tweaks
     rm -rf "${SCRIPT_TEMP_DIR}/tweaks"
     mkdir -p "${SCRIPT_TEMP_DIR}/tweaks"
@@ -420,7 +420,8 @@ show_tweaks_menu() {
     declare -a name_version_list
 
     #  Parse tweaks file and save in list (line by line)
-    while IFS= read -r line; do
+    # Add empty line at the end
+    echo >>"$SCRIPT_TWEAKS_FILE" && while IFS= read -r line; do
         if [[ $line == "###!> name:"* ]]; then
             # Process previous entry if complete
             if [[ -n $name && -n $version && -n $content ]]; then
