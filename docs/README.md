@@ -68,7 +68,7 @@ mxl_update_channel="public"
 mxl_update_exclude=("cnc-ddraw config.exe" "ddraw.dll")
 gui_width="420"
 gui_height="320"
-tweaks_url="https://my/custom/tweaks/url/to/tweaks.db"
+tweaks_url="https://my/custom/url/to/tweaks.db"
 ```
 
 ## Backup & Restore
