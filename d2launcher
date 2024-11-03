@@ -243,11 +243,8 @@ main() {
 
     # Main Menu
     while (true); do
-
         cd "$WORKING_DIR" || { zenity_error "Cannot access $WORKING_DIR" && exit 1; }
-
-        # Show main menu
-        show_main_menu
+        show_main_menu # Show main menu
     done
 }
 
@@ -611,7 +608,7 @@ show_gui_update_mxl() {
     # Create tmp download dir
     local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
     mkdir -p "$tmp_patch_dir"
-    cd "${SCRIPT_TEMP_DIR}/tweaks" || { zenity_error "Can not access ${tmp_patch_dir}" && exit 1; }
+    cd "${tmp_patch_dir}" || { zenity_error "Can not access ${tmp_patch_dir}" && exit 1; }
     # Downloading
     (
         for mxl_file in "${mxl_remote_files[@]}"; do
