@@ -74,6 +74,8 @@ D2_SIGMALOADER_EXE_FILENAME="sigma-loader.exe"
 MXL_PATCHES_DIR="$SCRIPT_HOME_DIR/patches"
 MXL_PATCH_VERSION_FILENAME="d2launcher-patch.version"
 
+D2_BIN_DIR="$SCRIPT_BIN_DIR/diablo2"
+
 # /////////////////////////////////////////////////////
 # CONFIGURATION
 # /////////////////////////////////////////////////////
@@ -91,7 +93,6 @@ wine_user="$WINE_NATIVE_USERNAME"
 wine_init=""
 
 # Diablo II
-d2_dir="$SCRIPT_BIN_DIR/diablo2"
 d2_exe="Diablo II.exe"
 d2_args="-3dfx"
 
@@ -191,7 +192,6 @@ main() {
     fi
 
     # Check and create config entries
-    config_check_property "d2_dir" "$d2_dir"
     config_check_property "d2_exe" "$d2_exe"
     config_check_property "d2_args" "$d2_args"
     config_check_property "gui_width" "$gui_width"
@@ -214,7 +214,7 @@ main() {
     fi
 
     # If Diablo II exe exists and no backup file can be found
-    if [ -f "${d2_dir}/${d2_exe}" ] && [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
+    if [ -f "${D2_BIN_DIR}/${d2_exe}" ] && [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
         show_gui_create_backup
     fi
 
@@ -665,23 +665,23 @@ show_gui_mxl_patches() {
 
     (
         # Remove patched files from d2 dir
-        if [ -f "${MXL_PATCHES_DIR}/$(<"${d2_dir}/${MXL_PATCH_VERSION_FILENAME}").zip" ]; then
-            mapfile -t patched_files < <(zipinfo -1 "${MXL_PATCHES_DIR}/$(<"${d2_dir}/${MXL_PATCH_VERSION_FILENAME}").zip")
+        if [ -f "${MXL_PATCHES_DIR}/$(<"${D2_BIN_DIR}/${MXL_PATCH_VERSION_FILENAME}").zip" ]; then
+            mapfile -t patched_files < <(zipinfo -1 "${MXL_PATCHES_DIR}/$(<"${D2_BIN_DIR}/${MXL_PATCH_VERSION_FILENAME}").zip")
             for item in "${patched_files[@]}"; do
                 # Check if file is excluded. Otherwise remove file
                 if ! echo "${mxl_update_exclude[@]}" | grep -q -w "$item"; then
-                    rm -f "${d2_dir}/${item}"
+                    rm -f "${D2_BIN_DIR}/${item}"
                 fi
             done
         fi
 
         # Patching Diablo II core data
-        unzip -o "$D2_CORE_PATCH_FILE_ZIP" -d "$d2_dir" -x "${mxl_update_exclude[@]}"
+        unzip -o "$D2_CORE_PATCH_FILE_ZIP" -d "$D2_BIN_DIR" -x "${mxl_update_exclude[@]}"
 
         # Patching content of patch file to Diablo II dir
-        unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$d2_dir" -x "${mxl_update_exclude[@]}"
+        unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$D2_BIN_DIR" -x "${mxl_update_exclude[@]}"
 
-        echo "$patch_filename" >"$d2_dir/$MXL_PATCH_VERSION_FILENAME"
+        echo "$patch_filename" >"$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME"
 
     ) &
     if ! zenity_progress $! "Patching $patch_filename" --no-cancel; then
@@ -754,11 +754,11 @@ show_gui_restore_backup() {
         zenity_error "Error: $D2_BACKUP_TAR_FILE no found"
         return 1
     else
-        local text_new='Backup was found!' && [ -f "${d2_dir}/${d2_exe}" ] && text_new="This will REMOVE all data in '${d2_dir}'."
+        local text_new='Backup was found!' && [ -f "${D2_BIN_DIR}/${d2_exe}" ] && text_new="This will REMOVE all data in '${D2_BIN_DIR}'."
         if zenity_question "<big>Restore Diablo II Backup</big>\n\n${text_new}\n\nRestore <b>Diablo II Backup</b> now?"; then
             (
                 # Restore bin/diablo2 from backup
-                rm -rf "$SCRIPT_BIN_DIR/diablo2"
+                mv -f "$D2_BIN_DIR" "${D2_BIN_DIR}.old"
                 tar -xvf "$D2_BACKUP_TAR_FILE" -C "$SCRIPT_BIN_DIR"
             ) | log &
             if ! zenity_progress $! "Restore Diablo II Backup..." --no-cancel; then
@@ -939,16 +939,16 @@ check_d2stats_install() {
     fi
 
     # sigma-loader.exe
-    if [ "$1" = "force" ] || [ ! -f "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME" ]; then
+    if [ "$1" = "force" ] || [ ! -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" ]; then
         if ! zenity_question "<b>$D2_SIGMALOADER_EXE_FILENAME</b> is required from internet.\n\nDownload now?"; then
             return 1
         fi
         (
-            rm -f "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME"
-            curl -Lk "$d2_sigma_loader_url" -o "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME"
+            rm -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
+            curl -Lk "$d2_sigma_loader_url" -o "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
         ) &
         if ! zenity_progress $! "Downloading $D2_SIGMALOADER_EXE_FILENAME"; then
-            rm -f "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME"
+            rm -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
             zenity_error "Error during install $D2_SIGMALOADER_EXE_FILENAME"
             return 1
         fi
@@ -957,7 +957,7 @@ check_d2stats_install() {
 }
 
 check_patch_installation() {
-    if [ ! -f "$d2_dir/$MXL_PATCH_VERSION_FILENAME" ]; then
+    if [ ! -f "$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" ]; then
         if ! zenity_question "<b>No patch installed!</b>\n\nStart Diablo II anyway?"; then
             return 1
         fi
@@ -965,7 +965,7 @@ check_patch_installation() {
 }
 
 check_d2_dir() {
-    if [ ! -d "$d2_dir" ]; then
+    if [ ! -d "$D2_BIN_DIR" ]; then
         # Check if backup file exists
         if [ -f "$D2_BACKUP_TAR_FILE" ]; then
             show_gui_restore_backup
@@ -980,8 +980,14 @@ check_d2_dir() {
             echo -e "Error directory is empty"
             return 1
         fi
-        config_replace_property "d2_dir" "$directory"
-        zenity_info "Diablo II set to:\n\n$directory"
+        # Copy files to d2launcher bin
+        (cp -rf "$directory" "$D2_BIN_DIR") &
+        if ! zenity_progress $! "Initialize Diablo II Directory..."; then
+            rm -f "$D2_BIN_DIR"
+            zenity_error "Error init Diablo II"
+            return 1
+        fi
+        zenity_info "Diablo II successfully initialized"
         restart_script
     fi
 }
@@ -1005,17 +1011,17 @@ exec_diablo2() {
     check_patch_installation || return 1
     if pgrep -x "$D2_STATS_EXE_FILENAME" >/dev/null; then
         # If D2Stats is running do this ...
-        if [ ! -f "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME" ]; then
-            zenity_error "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME not found"
+        if [ ! -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" ]; then
+            zenity_error "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME not found"
             return 1
         fi
-        exec_wine_exe "$d2_dir/$D2_SIGMALOADER_EXE_FILENAME" "$d2_args"
+        exec_wine_exe "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" "$d2_args"
     else
-        if [ ! -f "$d2_dir/$d2_exe" ]; then
-            zenity_error "$d2_dir/$d2_exe not found"
+        if [ ! -f "$D2_BIN_DIR/$d2_exe" ]; then
+            zenity_error "$D2_BIN_DIR/$d2_exe not found"
             return 1
         fi
-        exec_wine_exe "$d2_dir/$d2_exe" "$d2_args"
+        exec_wine_exe "$D2_BIN_DIR/$d2_exe" "$d2_args"
     fi
     exit 0
 }
@@ -1044,33 +1050,33 @@ exec_d2stats() {
 exec_glide_settings() {
     check_d2_dir || return 1
     check_wine_install || return 1
-    if [ ! -f "$d2_dir/$D2_GLIDE_EXE_FILENAME" ]; then
-        zenity_error "$d2_dir/$D2_GLIDE_EXE_FILENAME not found"
+    if [ ! -f "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME" ]; then
+        zenity_error "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME not found"
         return 1
     fi
-    exec_wine_exe "$d2_dir/$D2_GLIDE_EXE_FILENAME"
+    exec_wine_exe "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME"
 }
 
 exec_ddraw_settings() {
     check_d2_dir || return 1
     # check_ddraw_install || return 1
     check_wine_install || return 1
-    if [ ! -f "$d2_dir/$D2_DDRAW_CONFIG_EXE_FILENAME" ]; then
-        zenity_error "$d2_dir/$D2_DDRAW_CONFIG_EXE_FILENAME not found. Will open help in browser..."
+    if [ ! -f "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME" ]; then
+        zenity_error "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME not found. Will open help in browser..."
         (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw) &
         return 1
     fi
-    exec_wine_exe "$d2_dir/$D2_DDRAW_CONFIG_EXE_FILENAME"
+    exec_wine_exe "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME"
 }
 
 exec_d2_video_settings() {
     check_d2_dir || return 1
     check_wine_install || return 1
-    if [ ! -f "$d2_dir/$D2_VIDTEST_EXE_FILENAME" ]; then
-        zenity_error "$d2_dir/$D2_VIDTEST_EXE_FILENAME not found"
+    if [ ! -f "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME" ]; then
+        zenity_error "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME not found"
         return 1
     fi
-    exec_wine_exe "$d2_dir/$D2_VIDTEST_EXE_FILENAME"
+    exec_wine_exe "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME"
 }
 
 # /////////////////////////////////////////////////////
@@ -1119,9 +1125,9 @@ zenity_menu() {
     local cancel_button_text="$1" && shift
     local ok_button_text="$1" && shift
     local mxl_version_info_text="not installed"
-    if [ -f "$d2_dir/$MXL_PATCH_VERSION_FILENAME" ]; then
+    if [ -f "$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" ]; then
         # Read installed Median XL version
-        mxl_version_info_text=$(rev <"$d2_dir/$MXL_PATCH_VERSION_FILENAME" | cut -f 1 -d '-' | rev)
+        mxl_version_info_text=$(rev <"$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" | cut -f 1 -d '-' | rev)
     fi
     local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'"><b>D2LAUNCHER | '$SCRIPT_VERSION'</b></span>'
     local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>MEDIAN XL  | '$mxl_version_info_text'</b></span>'

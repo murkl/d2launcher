@@ -58,7 +58,6 @@ You can override the script properties in the configuration settings (`Settings`
 <sub><b>Example `d2launcher.conf`:</b></sub>
 
 ```
-d2_dir="$HOME/.d2launcher/bin/diablo2"
 d2_exe="Diablo II.exe"
 d2_args="-ddraw"
 wine_init="gamemoderun"
@@ -134,7 +133,7 @@ It's nessesary to start D2Stats (Statistics) in d2launcher first, before startin
 Thanks to [@GnomeBeans](https://github.com/murkl/d2launcher/issues/8#issuecomment-1553762919)
 
 1. Download latest [cnc-ddraw.zip](https://github.com/FunkyFr3sh/cnc-ddraw/releases)
-2. Unzip the downloaded `cnc-ddraw.zip` and drop the content into `diablo 2` install dir (same as your `d2_dir` property).
+2. Unzip the downloaded `cnc-ddraw.zip` and drop the content into `~/.d2launcher/bin/diablo2` install dir.
 3. Goto `Settings` > `Wine Settings` > `Library` and override/add `ddraw` (set DLL load strategy to: `native then built in`).
 4. Change `d2_args` property in `Settings` > `Edit Configuration` from `-3dfx` to `-ddraw`
 5. Optimize prefered settings: `Settings` > `Direct Draw Settings` (optional)
@@ -187,7 +186,6 @@ The working directory is a generated temporary directory and is deleted after te
 ```
 ###!> name: my_first_tweak_script
 ###!> version: 1.0.0
-echo "Diablo II Directory: $d2_dir"
 echo "You can use bash code to pimp your Diablo II here..."
 
 ###!> name: my_second_tweak_script
