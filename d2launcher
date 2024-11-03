@@ -692,6 +692,7 @@ show_gui_mxl_patches() {
 }
 
 show_gui_update_tweaks_db() {
+    ! zenity_question "<big>D2Launcher Tweaks DB Updater</big>\n\nUpdate and replace local <b>tweaks.db</b>?" && return 1
     if [[ "$tweaks_url" = "http"* ]]; then # Download
         (curl -sLf "$tweaks_url" >"${SCRIPT_TEMP_DIR}/tweaks.db" || rm "${SCRIPT_TEMP_DIR}/tweaks.db") &
         if ! zenity_progress $! "Downloading tweaks.db"; then
