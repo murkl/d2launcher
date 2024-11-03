@@ -487,7 +487,7 @@ show_tweaks_menu() {
     else
         echo ":: Completed" >>"$tweak_log"
     fi
-    zenity --text-info --width="800" --height="600" --title="Tweak Log" --ok-label="Ok" --cancel-label="Back" --font="monospace" --filename="$tweak_log"
+    zenity --text-info --width="800" --height="600" --title="Tweak Log" --ok-label="Ok" --cancel-label="Close" --font="monospace" --filename="$tweak_log"
     return 0
 }
 # /////////////////////////////////////////////////////
