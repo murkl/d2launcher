@@ -5,7 +5,6 @@ echo ":: Dummy 1 script sourcecode..."
 ###!> name: dummy_script_2
 ###!> version: latest
 echo ":: Dummy 2 script sourcecode..."
-exit 1
 
 ###!> name: dummy_script_3
 ###!> version: latest
