@@ -1,7 +1,12 @@
-###!> name: FunkyFr3sh/cnc-ddraw
+###!> name: dummy_script_1
 ###!> version: latest
-echo "Example Template..."
+echo ":: Dummy 1 script sourcecode..."
 
-###!> name: GavinK88/d2gl-mxl
+###!> name: dummy_script_2
 ###!> version: latest
-echo "Example Template..."
+echo ":: Dummy 2 script sourcecode..."
+exit 1
+
+###!> name: dummy_script_3
+###!> version: latest
+echo ":: Dummy 3 script sourcecode..."

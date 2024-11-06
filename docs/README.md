@@ -169,7 +169,7 @@ No sound                   | -ns
 
 ## User Tweaks
 
-Open `Tweaks` in the main menu and select the desired tweak script that you want to install.
+Open `Tweaks` in the main menu and select the desired tweak script that you want to install. This is intended for your own install scripts such as d2gl or cnc-ddraw.
 
 ### Update Tweaks Database
 
@@ -181,7 +181,14 @@ Separated by the two header lines `###!> name: ...` and `###!> version ...` (ple
 
 The working directory is a generated temporary directory and is deleted after termination. You have access to the variables from `d2launcher.conf` within the tweaks script.
 
+**Note:** The Diablo II installation dir is: `~/.d2launcher/bin/diablo2` (use this dir to copy d2-gl files for example)
+
 <sub><b>Example `tweaks.db`:</b></sub>
+
+- Create a new `~/tweaks.db`
+- Set `tweaks_url="~/tweaks.db"`
+
+**Note:** The `tweaks.db` file can be saved in any location. It must then be adapted accordingly in the `tweaks_url`.
 
 ```
 ###!> name: my_first_tweak_script
@@ -197,7 +204,7 @@ echo "Do another plugin stuff..."
 
 ### Share your own Tweaks Database
 
-You only need to share your webserver URL and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/tweaks.db` from `tweaks_url`.
+You need to share your URL to your `tweaks.db` and set as `tweaks_url` in settings. Remember to update the tweaks database to create new local `~/.d2launcher/tweaks.db` from `tweaks_url`.
 
 **Note:** Feel free to open a PR and merge your tweaks into d2launcher as a PR.
 

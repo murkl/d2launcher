@@ -472,7 +472,7 @@ show_tweaks_menu() {
 
     # Run tweak script in temp as working dir
     (
-        echo "// Install ${result}..."
+        echo "// Install ${result}"
         chmod +x "${tweak_file}"
         bash -c "set -a && source ${SCRIPT_CONFIG_FILE} && ${tweak_file}" || echo $? >"${SCRIPT_TEMP_DIR}/tweaks/error"
     ) 2>&1 | tee -a "$tweak_log" &
@@ -483,7 +483,7 @@ show_tweaks_menu() {
     if [ -f "${SCRIPT_TEMP_DIR}/tweaks/error" ]; then
         echo ":: Error" >>"$tweak_log"
     else
-        echo ":: Completed" >>"$tweak_log"
+        echo ":: Success" >>"$tweak_log"
     fi
     zenity --text-info --width="800" --height="600" --title="Tweak Log" --ok-label="Ok" --cancel-label="Close" --font="monospace" --filename="$tweak_log"
     return 0
