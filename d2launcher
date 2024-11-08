@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090
 
-SCRIPT_VERSION="4.1.0"
+SCRIPT_VERSION="4.1.1"
 
 # /////////////////////////////////////////////////////
 # LOCATE SCRIPT WORKING DIR
@@ -1082,35 +1082,41 @@ exec_d2_video_settings() {
 # /////////////////////////////////////////////////////
 
 zenity() {
-    /usr/bin/zenity --title="" --icon="$SCRIPT_ICON_FILE" --width="$gui_width" --height="$gui_height" "$@"
+    /usr/bin/zenity --title="" --width="$gui_width" --height="$gui_height" "$@"
 }
 
 zenity_dialog() {
+    local type="$1" && shift
     local text="$1" && shift
+    local help_output icon_arg
+    help_output=$(/usr/bin/zenity --help-"${type:2}" 2>&1)
+    echo "$help_output" | grep -q -- "--icon=" && icon_arg='--icon'
+    echo "$help_output" | grep -q -- "--icon-name=" && icon_arg='--icon-name'
     local styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
-    zenity --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$@"
+    [ -n "$icon_arg" ] && icon_arg="${icon_arg}=${SCRIPT_ICON_FILE}"
+    zenity "$type" --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$icon_arg" "$@"
 }
 
 zenity_info() {
     local text="$1" && shift
-    zenity_dialog "$text" --info "$@"
+    zenity_dialog --info "$text" "$@"
 }
 
 zenity_error() {
     local text="$1" && shift
-    zenity_dialog "$text" --error "$@"
+    zenity_dialog --error "$text" "$@"
 }
 
 zenity_question() {
     local text="$1" && shift
-    zenity_dialog "$text" --question "$@"
+    zenity_dialog --question "$text" "$@"
 }
 
 zenity_progress() {
     local piped_pid="$1" && shift
     local text="$1" && shift
     tail -f /dev/null --pid "$piped_pid" | (
-        zenity_dialog "<b>$text</b>" --progress --pulsate --auto-close "$@" || (
+        zenity_dialog --progress "<b>$text</b>" --pulsate --auto-close "$@" || (
             kill -9 "$(list_all_children_pid "$piped_pid")"
             echo -e "Progress PID killed: $piped_pid"
             return 1
