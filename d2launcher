@@ -1091,7 +1091,6 @@ zenity_dialog() {
     local help_output icon_arg
     help_output=$(/usr/bin/zenity --help-"${type:2}" 2>&1)
     echo "$help_output" | grep -q -- "--icon=" && icon_arg='--icon'
-    echo "$help_output" | grep -q -- "--icon-name=" && icon_arg='--icon-name'
     local styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
     [ -n "$icon_arg" ] && icon_arg="${icon_arg}=${SCRIPT_ICON_FILE}"
     zenity "$type" --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$icon_arg" "$@"
