@@ -5,8 +5,10 @@
 name: Title
 
 on:
+  # The release pull request gets this check from the release job in ci.yml.
   pull_request:
     types: [opened, edited, synchronize, reopened]
+    paths-ignore: [CHANGELOG.md, .release-please-manifest.json]
 
 permissions: {}
 
