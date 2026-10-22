@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Diablo II
+GenericName=Median XL Launcher
+Comment=Play Median XL for Diablo II with Wine
+Exec=d2launcher
+Icon=d2launcher
+Terminal=false
+Categories=Game;RolePlaying;
+Keywords=Diablo;Median XL;MXL;D2Stats;Wine;
+StartupWMClass=d2launcher

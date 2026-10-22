@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# xdg-open for the tests: the URL lands in $STUB/opened.
+printf '%s\n' "$1" >>"${STUB}/opened"

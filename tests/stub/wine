@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Wine for the tests: it reports the version in $STUB_WINE_VERSION. Each other
+# call lands in $STUB/wine with the folder it ran in and the variables the game
+# reads. wineboot sets up a prefix as Proton's Wine does, with steamuser as its
+# user, and reg add writes into user.reg as Wine does.
+set -euo pipefail
+
+if [[ ${1:-} == --version ]]; then
+    echo "$STUB_WINE_VERSION"
+    exit 0
+fi
+{
+    printf 'cwd=%s\n' "$PWD"
+    printf 'env=WINEPREFIX=%s WINEDEBUG=%s WINEDLLOVERRIDES=%s WINEARCH=%s PULSE_LATENCY_MSEC=%s\n' \
+        "${WINEPREFIX-}" "${WINEDEBUG-}" "${WINEDLLOVERRIDES-}" "${WINEARCH-unset}" "${PULSE_LATENCY_MSEC-}"
+    printf 'arg=%s\n' "$@"
+} >>"${STUB}/wine"
+[[ ${1:-} != D2Stats.exe ]] || touch "${STUB}/D2Stats.exe"
+if [[ ${1:-} == wineboot ]]; then
+    mkdir -p "${WINEPREFIX}/drive_c/users/steamuser/AppData/Roaming"
+    touch "${WINEPREFIX}/system.reg"
+    printf '%s\n' '[Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders]' \
+        '"AppData"="C:\\users\\steamuser\\AppData\\Roaming"' >"${WINEPREFIX}/user.reg"
+fi
+if [[ ${1:-} == reg && ${2:-} == add ]]; then
+    key="${3#HKCU\\}"
+    printf '\n[%s] 0\n"%s"="%s"\n' "${key//\\/\\\\}" "$5" "$7" >>"${WINEPREFIX}/user.reg"
+fi

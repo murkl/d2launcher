@@ -1,1207 +1,1538 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1090
+# D2Launcher: Median XL for Diablo II on Linux, through Wine. It keeps Median XL
+# up to date, starts D2Stats and tweaks, and backs up the game and savegames.
+# docs/REFERENCE.md describes the settings and what lives in ~/.d2launcher.
 
-SCRIPT_VERSION="4.1.3"
+# Stamped by `make dist` for a release.
+VERSION='{{VERSION}}'
 
-# /////////////////////////////////////////////////////
-# LOCATE SCRIPT WORKING DIR
-# /////////////////////////////////////////////////////
+# Kron4ek's build of Proton's Wine in its WoW64 form: it runs the 32-bit game
+# without a 32-bit library of the system, the same on every distribution. A
+# bundled Wine that reports another version is replaced by this one.
+WINE_URL='https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz'
+WINE_SHA256='f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595'
+WINE_VERSION='wine-11.0-gdc26e618470 (Proton)'
+# cnc-ddraw, which Median XL brings, loads as on Windows: before Wine's own ddraw.
+# Windows programs get no menu entries or file types in the desktop.
+WINE_OVERRIDES='ddraw=n,b;winemenubuilder.exe=d'
+# The newest on purpose: a Median XL update can need a new D2Stats the same day.
+D2STATS_URL='https://github.com/azadix/D2Stats/releases/latest/download/D2Stats.zip'
+SIGMA_LOADER_URL='https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/latest/download/sigma-loader.exe'
+MXL_URL='https://launcher.median-xl.com/mxl/release/{channel}/manifest'
+RELEASE_URL='https://api.github.com/repos/murkl/d2launcher/releases/latest'
+DOCS_URL='https://github.com/murkl/d2launcher/blob/main/docs/REFERENCE.md'
 
-WORKING_SOURCE=${BASH_SOURCE[0]}
-while [ -L "$WORKING_SOURCE" ]; do
-    WORKING_DIR=$(cd -P "$(dirname "$WORKING_SOURCE")" >/dev/null 2>&1 && pwd)
-    WORKING_SOURCE=$(readlink "$WORKING_SOURCE")
-    [[ $WORKING_SOURCE != /* ]] && WORKING_SOURCE=$WORKING_DIR/$WORKING_SOURCE
-done
-WORKING_DIR=$(cd -P "$(dirname "$WORKING_SOURCE")" >/dev/null 2>&1 && pwd)
+REQUIRES=(zenity curl jq unzip zip tar xz sha1sum sha256sum flock pgrep)
+# Without every MPQ of a full installation, Diablo II asks for its disc.
+MPQS=(d2char d2data d2exp d2music d2sfx d2speech d2video d2xmusic d2xtalk d2xvideo)
+# Each file of a Median XL version as sha1sum lists it: 40 hex digits, two
+# spaces, a plain file name. A name never leads out of the game folder.
+SUM_LINE='^[0-9a-f]{40}  [A-Za-z0-9][A-Za-z0-9._ -]*$'
 
-# /////////////////////////////////////////////////////
-# CHECK ARCH INSTALLATION
-# /////////////////////////////////////////////////////
+# --- Places and settings
 
-SCRIPT_INSTALLED_ARCH='false' && pacman -Qi d2launcher &>/dev/null && SCRIPT_INSTALLED_ARCH='true'
-
-# /////////////////////////////////////////////////////
-# VARIABLES
-# /////////////////////////////////////////////////////
-
-# GitHub
-GITHUB_AUTHOR="murkl"
-GITHUB_REPO="d2launcher"
-GITHUB_TAGS_URL="https://api.github.com/repos/${GITHUB_AUTHOR}/${GITHUB_REPO}/tags"
-
-# Script
-SCRIPT_FILE="$WORKING_DIR/$(basename "$0")"
-SCRIPT_RES_DIR="$WORKING_DIR/res"
-SCRIPT_HOME_DIR="$HOME/.d2launcher"
-SCRIPT_BIN_DIR="$SCRIPT_HOME_DIR/bin"
-SCRIPT_BACKUP_DIR="$SCRIPT_HOME_DIR/backup"
-SCRIPT_TWEAKS_DIR="$SCRIPT_HOME_DIR/tweaks"
-
-SCRIPT_CONFIG_FILE="$SCRIPT_HOME_DIR/d2launcher.conf"
-SCRIPT_TWEAKS_FILE="$SCRIPT_HOME_DIR/tweaks.db"
-SCRIPT_LOG_FILE="$SCRIPT_HOME_DIR/d2launcher.log"
-SCRIPT_TEMP_DIR="$(mktemp -d "$HOME/.cache/d2launcher.XXXX")"
-SCRIPT_ICON_FILE="$SCRIPT_RES_DIR/icon.svg"
-
-# Wine
-WINE_BIN_DIR="$SCRIPT_BIN_DIR/wine"
-WINE_NATIVE_BIN="$WINE_BIN_DIR/bin/wine"
-WINE_NATIVE_PREFIX="$SCRIPT_HOME_DIR/wineprefix"
-WINE_NATIVE_USERNAME="steamuser" # Proton: "steamuser" | Wine: "$USER"
-
-# Diablo II
-D2_CORE_PATCH_FILE_ZIP="$SCRIPT_RES_DIR/d2-patch.zip"
-D2_VIDTEST_EXE_FILENAME="D2VidTst.exe"
-
-# Backup
-D2_BACKUP_TAR_FILE="${SCRIPT_BACKUP_DIR}/diablo2.tar"
-
-# Glide Wrapper
-D2_GLIDE_EXE_FILENAME="glide-init.exe"
-
-# cnc-ddraw
-D2_DDRAW_CONFIG_EXE_FILENAME="cnc-ddraw config.exe"
-
-# D2Stats
-D2_STATS_BIN_DIR="$SCRIPT_BIN_DIR/d2-stats"
-D2_STATS_EXE_FILENAME="D2Stats.exe"
-D2_STATS_EXE_INI_FILENAME="D2Stats.exe.ini"
-D2_STATS_RULES_DIRNAME="NotifierRules"
-D2_STATS_SOUNDS_DIRNAME="Sounds"
-D2_SIGMALOADER_EXE_FILENAME="sigma-loader.exe"
-
-# MXL Patches
-MXL_PATCHES_DIR="$SCRIPT_HOME_DIR/patches"
-MXL_PATCH_VERSION_FILENAME="d2launcher-patch.version"
-
-D2_BIN_DIR="$SCRIPT_BIN_DIR/diablo2"
-
-# /////////////////////////////////////////////////////
-# CONFIGURATION
-# /////////////////////////////////////////////////////
-
-# Urls
-wine_native_url="https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
-d2_stats_url="https://github.com/azadix/D2Stats/releases/latest/download/D2Stats.zip"
-d2_sigma_loader_url="https://github.com/SyndromeDayna/diablo-2-median-xl-sigma-loader/releases/latest/download/sigma-loader.exe"
-tweaks_upstream="https://raw.githubusercontent.com/murkl/d2launcher/refs/heads/main/res/tweaks.db"
-
-# Wine
-wine_default="$WINE_NATIVE_BIN"
-wineprefix="$WINE_NATIVE_PREFIX"
-wine_user="$WINE_NATIVE_USERNAME"
-wine_init=""
-
-# Diablo II
-d2_exe="Diablo II.exe"
-d2_args="-3dfx"
-
-# Script
-update_check="true"
-mxl_update_check="true"
-mxl_update_channel="public" # or beta
-d2_stats_tray="true"
-
-# Patch
-mxl_update_exclude=()
-
-# Gui
-gui_width="450"
-gui_height="420"
-gui_font="Monospace"
-gui_color="#87270A"
-gui_size="9"
-gui_dialog_width="340"
-gui_dialog_height="160"
-gui_dialog_font="Monospace"
-gui_dialog_color="#3e3e3e"
-gui_dialog_size="9"
-
-# /////////////////////////////////////////////////////
-# MAIN
-# /////////////////////////////////////////////////////
-
-main() {
-
-    # Check Dependencies
-    if ! [ -x "$(command -v /bin/notify-send)" ]; then
-        echo "notify-send not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v /bin/zenity)" ]; then
-        send_notify "zenity not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v curl)" ]; then
-        send_notify "curl not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v unzip)" ]; then
-        send_notify "unzip not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v jq)" ]; then
-        send_notify "jq not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v zip)" ]; then
-        send_notify "zip not installed"
-        exit 1
-    fi
-    if ! [ -x "$(command -v wine)" ]; then
-        send_notify "wine not installed"
-        exit 1
-    fi
-
-    # Create Script Dirs
-    mkdir -p "$SCRIPT_HOME_DIR" || { echo "Error creating ${SCRIPT_HOME_DIR}" && exit 1; }
-    mkdir -p "$SCRIPT_BIN_DIR" || { echo "Error creating ${SCRIPT_BIN_DIR}" && exit 1; }
-    mkdir -p "$SCRIPT_BACKUP_DIR" || { echo "Error creating ${SCRIPT_BACKUP_DIR}" && exit 1; }
-    mkdir -p "$SCRIPT_TEMP_DIR" || { echo "Error creating ${SCRIPT_TEMP_DIR}" && exit 1; }
-    mkdir -p "$SCRIPT_TWEAKS_DIR" || { echo "Error creating ${SCRIPT_TWEAKS_DIR}" && exit 1; }
-
-    # Rotate logfile
-    [ -f "$SCRIPT_LOG_FILE" ] && mv -f "$SCRIPT_LOG_FILE" "${SCRIPT_BACKUP_DIR}/d2launcher.log.old"
-
-    # Migration from old d2launcher version
-    if [ -f "$WORKING_DIR/d2launcher.conf" ] || [ -d "$WORKING_DIR/.wineprefix" ] || [ -d "$WORKING_DIR/res/patches" ] || [ -d "$WORKING_DIR/res/d2-stats" ] || [ -d "$WORKING_DIR/res/wine64" ]; then
-        if ! zenity_question "<big>D2Launcher Auto Migration</big>\n\nYou have to migrate your D2Launcher Data.\n\nMove Data to <b>$SCRIPT_HOME_DIR</b>?"; then
-            exit 1
-        fi
-        if [ -f "$WORKING_DIR/d2launcher.conf" ]; then mv -f "$WORKING_DIR/d2launcher.conf" "$SCRIPT_HOME_DIR/d2launcher.conf"; fi
-        if [ -d "$WORKING_DIR/.wineprefix" ]; then mv -f "$WORKING_DIR/.wineprefix" "$SCRIPT_HOME_DIR/wineprefix"; fi
-        if [ -d "$WORKING_DIR/res/patches" ]; then mv -f "$WORKING_DIR/res/patches" "$SCRIPT_HOME_DIR/patches"; fi
-        if [ -d "$WORKING_DIR/res/wine64" ]; then mv -f "$WORKING_DIR/res/wine64" "$SCRIPT_HOME_DIR//bin/wine"; fi
-        if [ -d "$WORKING_DIR/res/d2-stats" ]; then mv -f "$WORKING_DIR/res/d2-stats" "$SCRIPT_HOME_DIR/bin/d2-stats"; fi
-        zenity_info "D2Launcher successfully migrated"
-        restart_script
-    fi
-
-    # Migration from old d2launcher desktop file
-    if [ -f "$HOME/.local/share/applications/d2launcher.desktop" ]; then
-        if ! zenity_question "<big>D2Launcher Auto Migration</big>\n\nYou have to migrate your d2launcher.desktop.\n\nMove to <b>d2launcher.local.desktop</b>?"; then
-            exit 1
-        fi
-        mv -f "$HOME/.local/share/applications/d2launcher.desktop" "$HOME/.local/share/applications/d2launcher.local.desktop"
-        zenity_info "d2launcher.desktop successfully migrated"
-        restart_script
-    fi
-
-    # Create Config
-    if [ ! -f "$SCRIPT_CONFIG_FILE" ]; then
-        touch "$SCRIPT_CONFIG_FILE"
-    fi
-
-    # Check and create config entries
-    config_check_property "d2_exe" "$d2_exe"
-    config_check_property "d2_args" "$d2_args"
-    config_check_property "gui_width" "$gui_width"
-    config_check_property "gui_height" "$gui_height"
-    config_check_property "update_check" "$update_check"
-    config_check_property "mxl_update_check" "$mxl_update_check"
-    config_check_property "mxl_update_channel" "$mxl_update_channel"
-    config_check_property "d2_stats_tray" "$d2_stats_tray"
-
-    # Import config file
-    # shellcheck disable=SC1090
-    source "$SCRIPT_CONFIG_FILE"
-
-    # Startup
-    if [ "$update_check" = "true" ]; then
-        check_update_script &
-    fi
-    if [ "$mxl_update_check" = "true" ]; then
-        check_update_mxl &
-    fi
-
-    # If Diablo II exe exists and no backup file can be found
-    if [ -f "${D2_BIN_DIR}/${d2_exe}" ] && [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
-        show_gui_create_backup
-    fi
-
-    # Handle Desktop Files
-    mkdir -p "$HOME/.local/share/applications"
-    desktop_file_local="$HOME/.local/share/applications/d2launcher.local.desktop"
-    if [ "$SCRIPT_INSTALLED_ARCH" = "true" ] && [ -f "$desktop_file_local" ]; then
-        if zenity_question "<big>D2Launcher Desktop Starter File</big>\n\nYou local desktop file still exists.\n\nRemove <b>d2launcher.local.desktop</b>?"; then
-            rm -f "$desktop_file_local"
-        fi
-    fi
-
-    if [ "$SCRIPT_INSTALLED_ARCH" = "false" ] && [ ! -f "$desktop_file_local" ]; then
-        {
-            echo "[Desktop Entry]"
-            echo "Name=Diablo II"
-            echo "Icon=$SCRIPT_ICON_FILE"
-            echo "Exec=\"$SCRIPT_FILE\""
-            echo "Type=Application"
-            echo "Terminal=false"
-            echo "StartupWMClass=zenity"
-        } >"$desktop_file_local"
-    fi
-
-    echo "Startup finished" | log
-
-    # Main Menu
-    while (true); do
-        cd "$WORKING_DIR" || { zenity_error "Cannot access $WORKING_DIR" && exit 1; }
-        show_main_menu # Show main menu
-    done
+# Where everything lives. A function, so the tests set HOME first.
+places() {
+    dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+    home="${HOME}/.d2launcher"
+    conf="${home}/d2launcher.conf"
+    logs="${home}/logs"
+    logfile="${logs}/d2launcher.log"
+    game="${home}/bin/diablo2"
+    wine_home="${home}/bin/wine"
+    stats="${home}/bin/d2-stats"
+    patches="${home}/patches"
+    user_tweaks="${home}/tweaks"
+    backups="${home}/backup"
+    cache="${XDG_CACHE_HOME:-${HOME}/.cache}/d2launcher"
+    icon="${dir}/d2launcher.svg"
 }
 
-# /////////////////////////////////////////////////////
-# GUI MENUS
-# /////////////////////////////////////////////////////
-
-show_main_menu() {
-    local item_01="Diablo II"
-    local item_02="Statistics"
-    local item_03="Median XL Patches"
-    local item_04="Update Manager"
-    local item_05="Tweaks"
-    local item_06="Settings"
-    local result
-    result=$(zenity_menu "Menu" "Exit" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06")
-    local result_code=$?
-    if [ $result_code = 1 ] && [ "$result" = "" ]; then
-        exit 0
-    fi
-    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
-        show_gui_help
-        return
-    fi
-    if [ "$result" = "$item_01" ]; then
-        exec_diablo2
-        return
-    fi
-    if [ "$result" = "$item_02" ]; then
-        exec_d2stats
-        return
-    fi
-    if [ "$result" = "$item_03" ]; then
-        show_gui_mxl_patches
-        return
-    fi
-    if [ "$result" = "$item_04" ]; then
-        show_update_manager_menu
-        return
-    fi
-    if [ "$result" = "$item_05" ]; then
-        show_tweaks_menu
-        return
-    fi
-    if [ "$result" = "$item_06" ]; then
-        show_settings_menu
-        return
-    fi
+# The settings at their defaults. docs/REFERENCE.md#settings explains them.
+defaults() {
+    launch_options='-3dfx'
+    channel='public'
+    wine="${wine_home}/bin/wine"
+    prefix="${home}/wineprefix"
+    median_xl=true
+    d2stats=false
 }
 
-show_settings_menu() {
-    local item_01="Edit Configuration"
-    local item_02="Wine Settings"
-    local item_03="Diablo II Video Settings"
-    local item_04="Glide Wrapper Settings"
-    local item_05="Direct Draw Settings"
-    local item_06="Run EXE within Wine-Prefix..."
-    local item_07="Create Diablo II Backup"
-    local item_08="Restore Diablo II Backup"
-    local item_09="Import Median XL Savegames"
-    local item_10="Export Median XL Savegames"
-    local result
-    result=$(zenity_menu "Settings" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05" "$item_06" "$item_07" "$item_08" "$item_09" "$item_10")
-    local result_code=$?
-    if [ $result_code = 1 ] && [ "$result" = "" ]; then
-        return
-    fi
-    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
-        show_gui_help
-        return
-    fi
-    if [ "$result" = "$item_01" ]; then
-        show_gui_edit_configuration
-        return
-    fi
-    if [ "$result" = "$item_02" ]; then
-        exec_wine winecfg
-        return
-    fi
-    if [ "$result" = "$item_03" ]; then
-        exec_d2_video_settings
-        return
-    fi
-    if [ "$result" = "$item_04" ]; then
-        exec_glide_settings
-        return
-    fi
-    if [ "$result" = "$item_05" ]; then
-        exec_ddraw_settings
-        return
-    fi
-    if [ "$result" = "$item_06" ]; then
-        show_gui_run_exe
-        return
-    fi
-    if [ "$result" = "$item_07" ]; then
-        show_gui_create_backup
-        return
-    fi
-    if [ "$result" = "$item_08" ]; then
-        show_gui_restore_backup
-        return
-    fi
-    if [ "$result" = "$item_09" ]; then
-        show_gui_import_savegames
-        return
-    fi
-    if [ "$result" = "$item_10" ]; then
-        show_gui_export_savegames
-        return
-    fi
+# What a first start writes: every setting at its default.
+settings_template() {
+    cat <<'EOF'
+# D2Launcher settings, each at its default. Change a value to change the setting.
+# https://github.com/murkl/d2launcher/blob/main/docs/REFERENCE.md#settings
+
+# The command line of Diablo II, as in Steam: arguments, or a command around %command%.
+launch_options=-3dfx
+
+# The Median XL channel, public or beta.
+channel=public
+
+# A Wine of your own, such as /usr/bin/wine. Empty for the bundled one.
+wine=
+
+# The Wine prefix.
+prefix=~/.d2launcher/wineprefix
+
+# Median XL on top of Diablo II. Off, Play starts Diablo II alone, from a folder of its own.
+median_xl=true
+
+# D2Stats beside Median XL: Play starts it first, then the game through sigma-loader.
+d2stats=false
+EOF
 }
 
-show_update_manager_menu() {
-    local item_01="Update Tweaks Database"
-    local item_02="Check for Median XL update"
-    local item_03="Check for D2Launcher update"
-    local item_04="Force Proton/Wine update"
-    local item_05="Force D2Stats update"
-    local result
-    result=$(zenity_menu "Update Manager" "Back" "Ok" "$item_01" "$item_02" "$item_03" "$item_04" "$item_05")
-    local result_code=$?
-    if [ $result_code = 1 ] && [ "$result" = "" ]; then
-        return
-    fi
-    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
-        show_gui_help
-        return
-    fi
-    if [ "$result" = "$item_01" ]; then
-        show_gui_update_tweaks_db
-        return
-    fi
-    if [ "$result" = "$item_02" ]; then
-        show_gui_update_mxl
-        return
-    fi
-    if [ "$result" = "$item_03" ]; then
-        show_gui_update_script
-        return
-    fi
-    if [ "$result" = "$item_04" ]; then
-        check_wine_install "force"
-        return
-    fi
-    if [ "$result" = "$item_05" ]; then
-        check_d2stats_install "force"
-        return
-    fi
-}
-
-show_tweaks_menu() {
-
-    check_d2_dir || return 1
-
-    # Download tweaks db from URL (if not exists)
-    [ ! -f "$SCRIPT_TWEAKS_FILE" ] && ! show_gui_update_tweaks_db && return 1
-
-    # Check syntax
-    if ! [[ "$(sed '/^[[:space:]]*$/d' "${SCRIPT_TWEAKS_FILE}" | head -n 1 | awk '{print $1}')" == "###!"* ]]; then
-        zenity_error "No correct syntax format"
-        exit 1
-    fi
-
-    # Clear and recreate temporary directory for tweaks
-    rm -rf "${SCRIPT_TEMP_DIR}/tweaks"
-    mkdir -p "${SCRIPT_TEMP_DIR}/tweaks"
-    cd "${SCRIPT_TEMP_DIR}/tweaks" || { zenity_error "Can not access ${SCRIPT_TEMP_DIR}/tweaks" && exit 1; }
-
-    # Initialize variables and arrays
-    local name version content clean_name
-    declare -a name_version_list
-
-    #  Parse tweaks file and save in list (line by line)
-    # Add empty line at the end
-    echo >>"$SCRIPT_TWEAKS_FILE" && while IFS= read -r line; do
-        if [[ $line == "###!> tweak_name:"* ]]; then
-            # Process previous entry if complete
-            if [[ -n $name && -n $version && -n $content ]]; then
-                clean_name=$(print_clean_filename "${name}:${version}")
-                echo "$content" >"${clean_name}.sh"
-                name_version_list+=("$name:$version")
-            fi
-            name=${line#"###!> tweak_name: "} # Start new entry
-            unset version content       # Reset for new entry
-        elif [[ $line == "###!> tweak_version:"* ]]; then
-            version=${line#"###!> tweak_version: "}
-        else
-            content+="$line"$'\n' # Accumulate content
-        fi
-    done <"$SCRIPT_TWEAKS_FILE"
-
-    # Process the last entry if it exists
-    if [[ -n $name && -n $version && -n $content ]]; then
-        clean_name=$(print_clean_filename "${name}:${version}")
-        echo "$content" >"${clean_name}.sh"
-        name_version_list+=("${name}:${version}")
-    fi
-
-    # User select tweak
-    local result result_code
-    result=$(zenity_menu "Tweaks" "Back" "Ok" "${name_version_list[@]}")
-    result_code=$?
-    if [ $result_code = 1 ] && [ "$result" = "" ]; then
-        return 0
-    fi
-    if [ $result_code = 1 ] && [ "$result" = "?" ]; then
-        show_gui_help
-        return
-    fi
-    [ "$result" = "" ] && return 1
-
-    local tweak_file tweak_log
-    tweak_file="${SCRIPT_TEMP_DIR}/tweaks/$(print_clean_filename "$result").sh"
-
-    tweak_log="${tweak_file}.log"
-
-    # View source?
-    if zenity_question "View Sourcecode from <b>${result}</b> Script?"; then
-        zenity --text-info --width="1920" --height="1080" --title="Source: ${result}" --ok-label="Continue" --cancel-label="Cancel" --font="monospace" --filename="$tweak_file" || return 1
-    fi
-
-    # Install tweak?
-    if ! zenity_question "Install <b>${result}</b>?"; then
-        return 1
-    fi
-
-    # Run tweak script in temp as working dir
-    (
-        echo "// ${result}"
-        chmod +x "${tweak_file}"
-        bash -c "set -a && source ${SCRIPT_CONFIG_FILE} && ${tweak_file}" || echo $? >"${SCRIPT_TEMP_DIR}/tweaks/error"
-    ) 2>&1 | tee -a "$tweak_log" &
-    if ! zenity_progress $! "Install ${result}"; then
-        zenity_error "Error install ${result}"
-        return 1
-    fi
-    if [ -f "${SCRIPT_TEMP_DIR}/tweaks/error" ]; then
-        echo ":: ERROR Tweak installation failed" >>"$tweak_log"
-    else
-        echo ":: Tweak successfully installed" >>"$tweak_log"
-    fi
-    zenity --text-info --width="1080" --height="720" --title="Tweak Log" --ok-label="Ok" --cancel-label="Close" --font="monospace" --filename="$tweak_log"
-    return 0
-}
-# /////////////////////////////////////////////////////
-# GUI VIEWS
-# /////////////////////////////////////////////////////
-
-show_gui_update_script() {
-
-    local tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-update"
-    rm -f -r "$tmp_dir"
-    mkdir -p "$tmp_dir"
-
-    # Fetch latest version
-    local latest_version_file="$tmp_dir/latest.version"
-    (curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].name' >"$latest_version_file") &
-    if ! zenity_progress $! "Fetching D2Launcher update infos"; then
-        zenity_error "Error during fetch D2Launcher update infos"
-        return 1
-    fi
-    local latest_version
-    latest_version=$(<"$latest_version_file")
-
-    if [ "$latest_version" = "" ]; then
-        send_notify "Error no latest D2Launcher version found"
-        return 1
-    fi
-
-    if [ "$SCRIPT_INSTALLED_ARCH" = "true" ]; then
-        zenity_info "<big>D2Launcher Updater</big>\n\nInstalled version:\t$SCRIPT_VERSION\nRemote version:\t\t$latest_version\n\n<b>Please Update via System Package Manager!</b>"
-        return 1
-    fi
-
-    local version_info_text="No update available!\n\nForce install <b>D2Launcher $latest_version</b>?"
-    if [ "$SCRIPT_VERSION" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\nUpdate to version <b>$latest_version</b>?"
-    fi
-
-    local version_text="Installed version:\t$SCRIPT_VERSION\nRemote version:\t\t$latest_version\n\n$version_info_text"
-    if ! zenity_question "<big>D2Launcher Updater</big>\n\n$version_text"; then
-        return 1
-    fi
-
-    # Download d2launcher
-    (
-        local latest_zip_url
-        latest_zip_url=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].zipball_url')
-        curl -Lk "$latest_zip_url" -o "$tmp_dir/zipball.zip"
-    ) &
-    if ! zenity_progress $! "Downloading D2Launcher $latest_version"; then
-        zenity_error "Error during download D2Launcher $latest_version"
-        return 1
-    fi
-
-    # Install d2launcher
-    (
-        unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-        local unziped_dir
-        unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$GITHUB_AUTHOR-$GITHUB_REPO-*" -printf "%f")
-        cp -f -R "$tmp_dir/$unziped_dir/"* "$WORKING_DIR"
-        chmod +x "$SCRIPT_FILE"
-    ) &
-    if ! zenity_progress $! "Installing D2Launcher $latest_version" --no-cancel; then
-        zenity_error "Error during install D2Launcher $latest_version"
-        return 1
-    fi
-
-    zenity_info "D2Launcher $latest_version successfully installed"
-    restart_script
-}
-
-show_gui_update_mxl() {
-    check_d2_dir || return 1
-
-    local tmp_dir="$SCRIPT_TEMP_DIR/d2launcher-mxl-update"
-    rm -f -r "$tmp_dir"
-    mkdir -p "$tmp_dir"
-
-    local mxl_manifest_json="$tmp_dir/mxl_maninfest.json"
-    (curl -Ls --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" >"$mxl_manifest_json") &
-    if ! zenity_progress $! "Fetching Median XL version infos"; then
-        send_notify "No connection to Median XL server"
-        return 1
-    fi
-
-    local mxl_remote_tag
-    local mxl_remote_location
-    local mxl_remote_channel
-    local mxl_files_length
-    mxl_remote_tag=$(jq -r '.tag' "$mxl_manifest_json")
-    mxl_remote_location=$(jq -r '.location' "$mxl_manifest_json")
-    mxl_remote_channel=$(jq -r '.channel' "$mxl_manifest_json")
-    mxl_files_length=$(jq -r '.files | length' "$mxl_manifest_json")
-
-    if [ "$mxl_remote_tag" = "" ]; then
-        send_notify "Error no Median XL version found"
-        return 1
-    fi
-
-    # Check if new mxl version available
-    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$mxl_remote_tag.zip" ]; then
-        zenity_info "No Median XL update available"
-        return 1
-    fi
-
-    local question_text="<big>Median XL Updater</big>\n\n<b>New update available!</b>\n\nDownload version <b>$mxl_remote_tag</b>?"
-    if ! zenity_question "$question_text"; then
-        return 1
-    fi
-
-    # Create remote files array
-    local mxl_remote_files=()
-    for ((i = 0; i < "$mxl_files_length"; i++)); do
-        local mxl_remote_file
-        mxl_remote_file=$(jq -r ".files | .[${i}] | .name" "$mxl_manifest_json")
-        mxl_remote_files+=("$mxl_remote_file")
-    done
-
-    local new_mxl_patch_prefix="d2launcher-mxl-$mxl_remote_tag"
-
-    # Create tmp download dir
-    local tmp_patch_dir="$tmp_dir/$new_mxl_patch_prefix"
-    mkdir -p "$tmp_patch_dir"
-    cd "${tmp_patch_dir}" || { zenity_error "Can not access ${tmp_patch_dir}" && exit 1; }
-    # Downloading
-    (
-        for mxl_file in "${mxl_remote_files[@]}"; do
-            curl -L --get "${mxl_remote_location}" --data-urlencode "type=${mxl_remote_channel}" --data-urlencode "tag=${mxl_remote_tag}" --data-urlencode "file=${mxl_file}" >"${mxl_file}"
-        done
-    ) &
-    if ! zenity_progress $! "Downloading $new_mxl_patch_prefix"; then
-        zenity_error "Error during download $new_mxl_patch_prefix"
-        return 1
-    fi
-
-    # Create patch file
-    (
-        mkdir -p "$MXL_PATCHES_DIR"
-        zip -r -0 "$MXL_PATCHES_DIR/$new_mxl_patch_prefix.zip" .
-    ) &
-    if ! zenity_progress $! "Creating Median XL $mxl_remote_tag patch"; then
-        zenity_error "Error creating $new_mxl_patch_prefix patch"
-        return 1
-    fi
-
-    zenity_info "Median XL $mxl_remote_tag successfully downloaded"
-}
-
-show_gui_mxl_patches() {
-    check_d2_dir || return 1
-
-    if [ ! -d "$MXL_PATCHES_DIR" ]; then
-        zenity_error "No local Median XL patches found.\n\nUpdate Median XL first!"
-        return 1
-    fi
-    if [ ! -f "$D2_CORE_PATCH_FILE_ZIP" ]; then
-        zenity_error "$D2_CORE_PATCH_FILE_ZIP not found!"
-        return 1
-    fi
-
-    # List patch files
-    cd "$MXL_PATCHES_DIR" || { zenity_error "Can not access ${MXL_PATCHES_DIR}" && exit 1; }
-    if ! patch_filename=$(find . -maxdepth 1 -name '*.zip' -printf "%f\n" | sort -r | rev | cut -f 2- -d '.' | rev | zenity_menu "Median XL Patches" "Back" "Patch"); then
-        if [ "$patch_filename" = "?" ]; then
-            show_gui_help
-            return
-        else
+# Reads a settings file over the current values and prints what is wrong with
+# it. Each value is checked here, so a mistake shows at the start, with its line.
+read_settings() {
+    local n=0 line key value program
+    while IFS= read -r line || [[ -n $line ]]; do
+        n=$((n + 1))
+        [[ ! $line =~ ^[[:space:]]*(#|$) ]] || continue
+        if [[ ! $line =~ ^[[:space:]]*([A-Za-z0-9_]+)=(.*)$ ]]; then
+            echo "Line ${n} is no setting=value."
             return 1
         fi
-    fi
-
-    if [ "$patch_filename" = "" ]; then
-        echo -e "No patch file selected"
-        return 1
-    fi
-
-    (
-        # Remove patched files from d2 dir
-        if [ -f "${MXL_PATCHES_DIR}/$(<"${D2_BIN_DIR}/${MXL_PATCH_VERSION_FILENAME}").zip" ]; then
-            mapfile -t patched_files < <(zipinfo -1 "${MXL_PATCHES_DIR}/$(<"${D2_BIN_DIR}/${MXL_PATCH_VERSION_FILENAME}").zip")
-            for item in "${patched_files[@]}"; do
-                # Check if file is excluded. Otherwise remove file
-                if ! echo "${mxl_update_exclude[@]}" | grep -q -w "$item"; then
-                    rm -f "${D2_BIN_DIR}/${item}"
-                fi
-            done
-        fi
-
-        # Patching Diablo II core data
-        unzip -o "$D2_CORE_PATCH_FILE_ZIP" -d "$D2_BIN_DIR" -x "${mxl_update_exclude[@]}"
-
-        # Patching content of patch file to Diablo II dir
-        unzip -o "$MXL_PATCHES_DIR/$patch_filename.zip" -d "$D2_BIN_DIR" -x "${mxl_update_exclude[@]}"
-
-        echo "$patch_filename" >"$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME"
-
-    ) &
-    if ! zenity_progress $! "Patching $patch_filename" --no-cancel; then
-        zenity_error "Error during patch $patch_filename"
-        return 1
-    fi
-    zenity_info "$patch_filename successfully patched"
-}
-
-show_gui_update_tweaks_db() {
-    ! zenity_question "<big>D2Launcher Tweaks DB Updater</big>\n\n<b>Upstream:</b>\n${tweaks_upstream}\n\n<b>Local:</b>\n${SCRIPT_TWEAKS_FILE}\n\n<b>Update</b> and replace local <b>tweaks.db</b>?" && return 1
-    if [[ "$tweaks_upstream" = "http"* ]]; then # Download
-        (curl -sLf "$tweaks_upstream" >"${SCRIPT_TEMP_DIR}/tweaks.db" || rm "${SCRIPT_TEMP_DIR}/tweaks.db") &
-        if ! zenity_progress $! "Downloading tweaks.db"; then
-            zenity_error "Error during download $tweaks_upstream"
-            return 1
-        fi
-        [ ! -f "${SCRIPT_TEMP_DIR}/tweaks.db" ] && zenity_error "Error downloading ${tweaks_upstream}" && return 1
-    else # Or copy if variable is set to local file
-        cp -f "$tweaks_upstream" "${SCRIPT_TEMP_DIR}/tweaks.db"
-        [ ! -f "${SCRIPT_TEMP_DIR}/tweaks.db" ] && zenity_error "Error copy ${tweaks_upstream}" && return 1
-    fi
-
-    if ! [[ "$(sed '/^[[:space:]]*$/d' "${SCRIPT_TEMP_DIR}/tweaks.db" | head -n 1 | awk '{print $1}')" == "###!"* ]]; then
-        zenity_error "No correct syntax format"
-        exit 1
-    fi
-
-    cp -f "${SCRIPT_TEMP_DIR}/tweaks.db" "$SCRIPT_TWEAKS_FILE"
-    send_notify "Tweaks Databse successfully updated"
-}
-
-show_gui_edit_configuration() {
-    local result
-    if result=$(zenity --text-info --width="800" --height="600" --title="Configuration" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$SCRIPT_CONFIG_FILE"); then
-        echo "$result" >"$SCRIPT_CONFIG_FILE"
-        send_notify "Configuration saved"
-        restart_script
-    fi
-}
-
-show_gui_run_exe() {
-    local file
-    file=$(zenity --file-selection --title="Run *.exe" --file-filter="*.exe *.msi")
-    if [ "$file" = "" ]; then
-        return 1
-    fi
-    exec_wine_exe "$file"
-}
-
-show_gui_create_backup() {
-    local text_new='' && [ ! -f "$D2_BACKUP_TAR_FILE" ] && text_new='\n\nYou have not yet created a Backup.'
-    if zenity_question "<big>Diablo II Backup</big>${text_new}\n\nCreate <b>Diablo II Backup</b> now?"; then
-        (
-            # Create backup from diablo2 dir
-            cd "$SCRIPT_BIN_DIR" || { zenity_error "Can not access ${SCRIPT_BIN_DIR}" && exit 1; }
-            tar -cvf diablo2.backup.tar diablo2/ || rm -f diablo2.backup.tar
-            mv -f ./diablo2.backup.tar "$D2_BACKUP_TAR_FILE"
-        ) &
-        if ! zenity_progress $! "Creating Diablo II Backup..."; then
-            zenity_error "Error creating Backup"
-            return 1
-        fi
-        send_notify "Diablo II Backup completed"
-    fi
-}
-
-show_gui_restore_backup() {
-    if [ ! -f "$D2_BACKUP_TAR_FILE" ]; then
-        zenity_error "Error: $D2_BACKUP_TAR_FILE no found"
-        return 1
-    else
-        local text_new='Backup was found!' && [ -f "${D2_BIN_DIR}/${d2_exe}" ] && text_new="This will REMOVE all data in '${D2_BIN_DIR}'."
-        if zenity_question "<big>Restore Diablo II Backup</big>\n\n${text_new}\n\nRestore <b>Diablo II Backup</b> now?"; then
-            (
-                # Restore bin/diablo2 from backup
-                mv -f "$D2_BIN_DIR" "${D2_BIN_DIR}.old"
-                tar -xvf "$D2_BACKUP_TAR_FILE" -C "$SCRIPT_BIN_DIR"
-            ) | log &
-            if ! zenity_progress $! "Restore Diablo II Backup..." --no-cancel; then
-                zenity_error "Error restoring Backup"
+        key="${BASH_REMATCH[1]}"
+        value="${BASH_REMATCH[2]}"
+        value="${value%"${value##*[![:space:]]}"}"
+        [[ ! $value =~ ^\"(.*)\"$ ]] || value="${BASH_REMATCH[1]}"
+        [[ $value != \~/* ]] || value="${HOME}/${value#\~/}"
+        case $key in
+        launch_options)
+            case $value in
+            *[\;\&\|\<\>\$\`\\\(\)\{\}\"\']*)
+                echo "Line ${n}: launch_options runs without a shell. Leave out ; & | < > \$ \` \\ ( ) { } and quotes."
+                return 1
+                ;;
+            esac
+            program="$(launch_program "$value")"
+            if [[ -n $program ]] && ! command -v "$program" >/dev/null; then
+                echo "Line ${n}: launch_options runs ${program}, which is not installed."
                 return 1
             fi
-            send_notify "Diablo II Backup restored"
-            restart_script
-        fi
-    fi
-}
-
-show_gui_import_savegames() {
-    local file
-    file=$(zenity --file-selection --title="Import Median XL Savegames" --file-filter="d2launcher-mxl-save-*.zip")
-    if [ "$file" = "" ]; then
-        return 1
-    fi
-    mkdir -p "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL"
-    unzip -o "$file" -d "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL"
-    zenity_info "$file successfully imported"
-}
-
-show_gui_export_savegames() {
-    if [ ! -d "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL" ]; then
-        zenity_error "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL not found"
-        return 1
-    fi
-    local directory
-    directory=$(zenity --file-selection --title="Export Median XL Savegames" --directory)
-    if [ "$directory" = "" ]; then
-        return 1
-    fi
-    local filename
-    filename="d2launcher-mxl-save-$(date "+%Y-%m-%d-%H%M").zip"
-    cd "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL" || { zenity_error "Can not access mxl app data" && exit 1; }
-    zip -r -0 "$directory/$filename" .
-    zenity_info "Savegames successfully exported:\n\n$directory/$filename"
-}
-
-show_gui_help() {
-    (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#documentation) &
-}
-
-# /////////////////////////////////////////////////////
-# CHECK FUNCTIONS
-# /////////////////////////////////////////////////////
-
-check_update_script() {
-    local latest_version
-    latest_version=$(curl -sL "$GITHUB_TAGS_URL" | jq -r '.[0].name')
-    if [ "$latest_version" = "" ]; then
-        send_notify "GitHub connection error"
-        return 1
-    fi
-    if [ "$SCRIPT_VERSION" = "$latest_version" ]; then
-        echo -e "No D2Launcher update available"
-        return 1
-    fi
-    send_notify "New D2Launcher $latest_version update available"
-}
-
-check_update_mxl() {
-    # Parse mxl patch infos
-    local mxl_remote_tag
-    mxl_remote_tag=$(curl -Ls --get "https://launcher.median-xl.com/mxl/release/${mxl_update_channel}/manifest" | jq -r '.tag')
-    if [ "$mxl_remote_tag" = "" ]; then
-        send_notify "No connection to Median XL server"
-        return 1
-    fi
-    # Check if new mxl version available
-    if [ -f "$MXL_PATCHES_DIR/d2launcher-mxl-$mxl_remote_tag.zip" ]; then
-        echo -e "No Median XL update available"
-        return 1
-    fi
-    send_notify "New Median XL $mxl_remote_tag update available"
-}
-
-check_wine_install() {
-
-    # Prevent "Generic bad character" error when creating a new character
-    mkdir -p "${wineprefix}/drive_c/users/${wine_user}/AppData/Roaming/MedianXL/save"
-
-    # Check custom wine version
-    if [ "$wine_default" != "$WINE_NATIVE_BIN" ]; then
-        if [ -x "$(command -v "$wine_default")" ]; then
-            return 0
-        else
-            send_notify "Wine not found. Check your 'wine_default' property!"
-            return 1
-        fi
-    fi
-
-    # Check internal wine version
-    if [ "$1" = "force" ] || ! [ -x "$(command -v "$WINE_NATIVE_BIN")" ]; then
-
-        if ! zenity_question "<b>Wine</b> is required from internet.\n\nDownload now?"; then
-            return 1
-        fi
-
-        local tmp_file="$SCRIPT_TEMP_DIR/wine64.tar.xz"
-        rm -f "$tmp_file"
-
-        # Download
-        (
-            curl -Lk "$wine_native_url" -o "$tmp_file"
-        ) &
-        if ! zenity_progress $! "Downloading Wine"; then
-            zenity_error "Error during download Wine"
-            return 1
-        fi
-
-        # Installation
-        (
-            cd "$SCRIPT_TEMP_DIR" || return 1
-            mkdir -p "$SCRIPT_TEMP_DIR/wine64"
-            tar -xf "$tmp_file" --directory "$SCRIPT_TEMP_DIR/wine64"
-            cd "$SCRIPT_TEMP_DIR/wine64/wine-"* || return 1
-            rm -rf "$WINE_BIN_DIR"
-            mkdir -p "$WINE_BIN_DIR"
-            mv ./* "$WINE_BIN_DIR"
-        ) &
-        if ! zenity_progress $! "Install Wine"; then
-            zenity_error "Error during copy Wine"
-            return 1
-        fi
-
-        zenity_info "Wine successfully installed"
-    fi
-}
-
-check_d2stats_install() {
-
-    if [ "$1" = "force" ] || [ ! -f "$D2_STATS_BIN_DIR/$D2_STATS_EXE_FILENAME" ]; then
-
-        if ! zenity_question "<b>D2Stats</b> is required from internet.\n\nDownload now?"; then
-            return 1
-        fi
-
-        # Backup dir
-        local d2stats_old="$SCRIPT_TEMP_DIR/d2stats-old"
-
-        (
-            # Backup old d2stats files (if exists)
-            if [ -d "$D2_STATS_BIN_DIR" ]; then
-                rm -rf "$d2stats_old"
-                mv "$D2_STATS_BIN_DIR" "$d2stats_old"
+            launch_options="$value"
+            ;;
+        channel)
+            if [[ $value != public && $value != beta ]]; then
+                echo "Line ${n}: channel is public or beta."
+                return 1
             fi
-
-            # Clear d2stats dir
-            rm -rf "$D2_STATS_BIN_DIR"
-            mkdir -p "$D2_STATS_BIN_DIR"
-            cd "$D2_STATS_BIN_DIR" || { zenity_error "Can not access ${D2_STATS_BIN_DIR}" && exit 1; }
-
-            # Download & extract d2stats
-            local zipfile="d2-stats.zip"
-            curl -Lk "$d2_stats_url" -o "$zipfile"
-            unzip "$zipfile"
-            rm -f "$zipfile"
-
-            # Revert files from d2stats backup
-            [ -f "${d2stats_old}/${D2_STATS_EXE_INI_FILENAME}" ] && cp -f "${d2stats_old}/${D2_STATS_EXE_INI_FILENAME}" "${D2_STATS_BIN_DIR}"
-            [ -d "${d2stats_old}/${D2_STATS_RULES_DIRNAME}" ] && cp -rf "${d2stats_old}/${D2_STATS_RULES_DIRNAME}" "${D2_STATS_BIN_DIR}"
-            [ -d "${d2stats_old}/${D2_STATS_SOUNDS_DIRNAME}" ] && cp -rf "${d2stats_old}/${D2_STATS_SOUNDS_DIRNAME}" "${D2_STATS_BIN_DIR}"
-            rm -rf "$d2stats_old"
-        ) &
-
-        if ! zenity_progress $! "Downloading D2Stats"; then
-
-            # Revert files
-            rm -rf "$D2_STATS_BIN_DIR"
-            [ -d "$d2stats_old" ] && mv -f "$d2stats_old" "$D2_STATS_BIN_DIR"
-            zenity_error "Error during install D2Stats"
-            return 1
-        fi
-
-        zenity_info "D2Stats successfully downloaded"
-    fi
-
-    # sigma-loader.exe
-    if [ "$1" = "force" ] || [ ! -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" ]; then
-        if ! zenity_question "<b>$D2_SIGMALOADER_EXE_FILENAME</b> is required from internet.\n\nDownload now?"; then
-            return 1
-        fi
-        (
-            rm -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
-            curl -Lk "$d2_sigma_loader_url" -o "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
-        ) &
-        if ! zenity_progress $! "Downloading $D2_SIGMALOADER_EXE_FILENAME"; then
-            rm -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME"
-            zenity_error "Error during install $D2_SIGMALOADER_EXE_FILENAME"
-            return 1
-        fi
-        zenity_info "$D2_SIGMALOADER_EXE_FILENAME successfully downloaded"
-    fi
-}
-
-check_patch_installation() {
-    if [ ! -f "$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" ]; then
-        if ! zenity_question "<b>No patch installed!</b>\n\nStart Diablo II anyway?"; then
-            return 1
-        fi
-    fi
-}
-
-check_d2_dir() {
-    if [ ! -d "$D2_BIN_DIR" ]; then
-        # Check if backup file exists
-        if [ -f "$D2_BACKUP_TAR_FILE" ]; then
-            show_gui_restore_backup
-        fi
-        zenity_info "Please choose Diablo II directory..."
-        local directory
-        directory=$(zenity --file-selection --title="Choose Diablo II directory" --directory)
-        if [ $? = 1 ]; then
-            return 1
-        fi
-        if [ "$directory" = "" ]; then
-            echo -e "Error directory is empty"
-            return 1
-        fi
-        # Copy files to d2launcher bin
-        (cp -rf "$directory" "$D2_BIN_DIR") &
-        if ! zenity_progress $! "Initialize Diablo II Directory..."; then
-            rm -f "$D2_BIN_DIR"
-            zenity_error "Error init Diablo II"
-            return 1
-        fi
-        zenity_info "Diablo II successfully initialized"
-        restart_script
-    fi
-}
-
-# /////////////////////////////////////////////////////
-# EXECUTION FUNCTIONS
-# /////////////////////////////////////////////////////
-
-exec_wine() {
-    check_wine_install || return 1
-    WINEPREFIX="$wineprefix" $wine_init "$wine_default" "$@" 2>&1 | log
-}
-
-exec_wine_exe() {
-    exec_wine start /unix "$@"
-}
-
-exec_diablo2() {
-    if [ -n "$custom_command" ]; then
-        bash -c "$custom_command"
-        exit $?
-    fi
-    check_d2_dir || return 1
-    check_wine_install || return 1
-    check_patch_installation || return 1
-    if pgrep -x "$D2_STATS_EXE_FILENAME" >/dev/null; then
-        # If D2Stats is running do this ...
-        if [ ! -f "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" ]; then
-            zenity_error "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME not found"
-            return 1
-        fi
-        exec_wine_exe "$D2_BIN_DIR/$D2_SIGMALOADER_EXE_FILENAME" "$d2_args"
-    else
-        if [ ! -f "$D2_BIN_DIR/$d2_exe" ]; then
-            zenity_error "$D2_BIN_DIR/$d2_exe not found"
-            return 1
-        fi
-        exec_wine_exe "$D2_BIN_DIR/$d2_exe" "$d2_args"
-    fi
-    exit 0
-}
-
-exec_d2stats() {
-    check_d2_dir || return 1
-    check_d2stats_install || return 1
-    check_wine_install || return 1
-    (exec_wine_exe "$D2_STATS_BIN_DIR/$D2_STATS_EXE_FILENAME") &
-    # Workaround for disabling D2 Stats system tray (trying 5s to close the window)
-    if [ -x "$(command -v wmctrl)" ] && [ "$d2_stats_tray" = "false" ]; then
-        for ((i = 1; i < 6; i++)); do
-            echo -e "${i}. Try closing D2Stats system tray..."
-            sleep 1
-            local win_result
-            win_result=$(wmctrl -l | grep "Wine System Tray")
-            if [ "$win_result" != "" ]; then
-                wmctrl -c 'Wine System Tray'
-                echo -e "Wine System Tray closed"
-                break
+            channel="$value"
+            ;;
+        wine)
+            if [[ -n $value ]] && ! command -v "$value" >/dev/null; then
+                echo "Line ${n}: wine names no program: ${value}"
+                return 1
             fi
-        done
-    fi
-}
-
-exec_glide_settings() {
-    check_d2_dir || return 1
-    check_wine_install || return 1
-    if [ ! -f "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME" ]; then
-        zenity_error "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME not found"
-        return 1
-    fi
-    exec_wine_exe "$D2_BIN_DIR/$D2_GLIDE_EXE_FILENAME"
-}
-
-exec_ddraw_settings() {
-    check_d2_dir || return 1
-    # check_ddraw_install || return 1
-    check_wine_install || return 1
-    if [ ! -f "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME" ]; then
-        zenity_error "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME not found. Will open help in browser..."
-        (sleep 0.5 && xdg-open https://github.com/murkl/d2launcher#using-cnc-ddraw) &
-        return 1
-    fi
-    exec_wine_exe "$D2_BIN_DIR/$D2_DDRAW_CONFIG_EXE_FILENAME"
-}
-
-exec_d2_video_settings() {
-    check_d2_dir || return 1
-    check_wine_install || return 1
-    if [ ! -f "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME" ]; then
-        zenity_error "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME not found"
-        return 1
-    fi
-    exec_wine_exe "$D2_BIN_DIR/$D2_VIDTEST_EXE_FILENAME"
-}
-
-# /////////////////////////////////////////////////////
-# ZENITY HELPER
-# /////////////////////////////////////////////////////
-
-zenity() {
-    /usr/bin/zenity --title="" --width="$gui_width" --height="$gui_height" "$@"
-}
-
-zenity_dialog() {
-    local type="$1" && shift
-    local text="$1" && shift
-    local help_output icon_arg
-    help_output=$(/usr/bin/zenity --help-"${type:2}" 2>&1)
-    echo "$help_output" | grep -q -- "--icon=" && icon_arg='--icon'
-    local styled_text='<span font_family="'$gui_dialog_font'" font="'$gui_dialog_size'" foreground="'$gui_dialog_color'">\n'$text'</span>'
-    [ -n "$icon_arg" ] && icon_arg="${icon_arg}=${SCRIPT_ICON_FILE}"
-    zenity "$type" --width="$gui_dialog_width" --height="$gui_dialog_height" --text="$styled_text" "$icon_arg" "$@"
-}
-
-zenity_info() {
-    local text="$1" && shift
-    zenity_dialog --info "$text" "$@"
-}
-
-zenity_error() {
-    local text="$1" && shift
-    zenity_dialog --error "$text" "$@"
-}
-
-zenity_question() {
-    local text="$1" && shift
-    zenity_dialog --question "$text" "$@"
-}
-
-zenity_progress() {
-    local piped_pid="$1" && shift
-    local text="$1" && shift
-    tail -f /dev/null --pid "$piped_pid" | (
-        zenity_dialog --progress "<b>$text</b>" --pulsate --auto-close "$@" || (
-            kill -9 "$(list_all_children_pid "$piped_pid")"
-            echo -e "Progress PID killed: $piped_pid"
+            wine="${value:-${wine_home}/bin/wine}"
+            ;;
+        prefix)
+            if [[ -n $value && $value != /* ]]; then
+                echo "Line ${n}: prefix is an absolute path, such as ~/Games/diablo2."
+                return 1
+            fi
+            prefix="${value:-${home}/wineprefix}"
+            ;;
+        median_xl | d2stats)
+            if [[ $value != true && $value != false ]]; then
+                echo "Line ${n}: ${key} is true or false."
+                return 1
+            fi
+            printf -v "$key" '%s' "$value"
+            ;;
+        *)
+            echo "Line ${n}: there is no setting ${key}. They are launch_options, channel, wine, prefix, median_xl and d2stats."
             return 1
-        )
-    )
-}
-
-zenity_menu() {
-    local menu_text="$1" && shift
-    local cancel_button_text="$1" && shift
-    local ok_button_text="$1" && shift
-    local mxl_version_info_text="not installed"
-    if [ -f "$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" ]; then
-        # Read installed Median XL version
-        mxl_version_info_text=$(rev <"$D2_BIN_DIR/$MXL_PATCH_VERSION_FILENAME" | cut -f 1 -d '-' | rev)
+            ;;
+        esac
+    done <"$1"
+    if [[ $d2stats == true && $median_xl == false ]]; then
+        echo 'd2stats reads Median XL and needs median_xl=true.'
+        return 1
     fi
-    local text_1_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_color'"><b>D2LAUNCHER | '$SCRIPT_VERSION'</b></span>'
-    local text_2_styled='<span font_family="'$gui_font'" font="'$gui_size'" foreground="'$gui_dialog_color'"><b>MEDIAN XL  | '$mxl_version_info_text'</b></span>'
-    zenity --list --ok-label="$ok_button_text" --cancel-label="$cancel_button_text" --extra-button="?" --text="$text_1_styled\n$text_2_styled\n" --column="$menu_text" "$@"
 }
 
-# /////////////////////////////////////////////////////
-# CORE FUNCTIONS
-# /////////////////////////////////////////////////////
+# The program launch options run the game with: the first word in front of
+# %command% that sets no variable. Empty when they only pass arguments.
+launch_program() {
+    local words word
+    [[ " $1 " == *' %command% '* ]] || return 0
+    read -ra words <<<"$1"
+    for word in "${words[@]}"; do
+        [[ $word =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break
+    done
+    [[ $word == '%command%' ]] || printf '%s' "${word/#\~\//${HOME}/}"
+}
 
+# The settings of ~/.d2launcher/d2launcher.conf. A mistake opens the editor.
+load_settings() {
+    local problem
+    if [[ ! -f $conf ]]; then
+        settings_template >"${conf}.part"
+        mv -f "${conf}.part" "$conf"
+    fi
+    while ! problem="$(defaults && read_settings "$conf")"; do
+        ui_error "$(esc "${conf}"): $(esc "$problem")"
+        edit_settings || exit 1
+    done
+    use_settings
+}
+
+# The settings of the file in force, and the game folder they choose.
+use_settings() {
+    defaults
+    read_settings "$conf" >/dev/null
+    game="${game%-vanilla}"
+    [[ $median_xl == true ]] || game+='-vanilla'
+}
+
+# The settings in an editor. What you save is checked first, and a mistake opens
+# the editor again with your text.
+edit_settings() {
+    local text problem draft="${run}/settings"
+    cp "$conf" "$draft"
+    while true; do
+        text="$(ui_text Configuration --editable --filename="$draft" --ok-label=Save --cancel-label=Cancel)" || return 1
+        printf '%s\n' "$text" >"$draft"
+        problem="$(defaults && read_settings "$draft")" && break
+        ui_error "$(esc "$problem")"
+    done
+    cp "$draft" "${conf}.part"
+    mv -f "${conf}.part" "$conf"
+    use_settings
+    notify 'Settings saved.'
+}
+
+# --- Log
+
+# A line of the log: the time, where it comes from, what happened. The sources
+# are launcher, wine, game, d2stats and tweak.
 log() {
-    while IFS= read -r log_line; do
-        printf '%s %s\n' "$(date "+%Y-%m-%d %H:%M:%S") d2launcher:" "$log_line" >>"$SCRIPT_LOG_FILE"
-        echo "$log_line"
+    printf '%(%F %T)T  %-8s  %s\n' -1 "${2:-launcher}" "$1" >>"$logfile"
+}
+
+# Every line of a stream into the log, under the source named.
+log_stream() {
+    local line
+    while IFS= read -r line; do
+        log "$line" "$1"
     done
 }
 
-send_notify() {
-    echo "$*" | log && notify-send -a "Diablo II" -i "$SCRIPT_ICON_FILE" "D2Launcher" "$*"
+log_hint() {
+    printf 'The log has the details:\n%s' "$(esc "$logfile")"
 }
 
-restart_script() {
-    ("$SCRIPT_FILE") &
-    exit 0
-}
-
-list_all_children_pid() {
-    local children_pid
-    children_pid=$(ps -o pid= --ppid "$1")
-    for pid in $children_pid; do
-        list_all_children_pid "$pid"
+# Each start writes a log of its own. The four before it stay as .1 to .4 and
+# the oldest goes. 4.x kept its log beside the settings, the one before in backup/.
+rotate_logs() {
+    local n
+    mkdir -p "$logs"
+    [[ ! -f ${backups}/d2launcher.log.old ]] || mv -f "${backups}/d2launcher.log.old" "${logfile}.1"
+    [[ ! -f ${home}/d2launcher.log ]] || mv -f "${home}/d2launcher.log" "$logfile"
+    for n in 3 2 1; do
+        [[ ! -f ${logfile}.${n} ]] || mv -f "${logfile}.${n}" "${logfile}.$((n + 1))"
     done
-    echo "$children_pid"
+    [[ ! -f $logfile ]] || mv -f "$logfile" "${logfile}.1"
 }
 
-config_check_property() {
-    local config_key="$1"
-    local config_value="$2"
-    if ! grep -qrnw "$SCRIPT_CONFIG_FILE" -e "$config_key=*"; then
-        echo "$config_key=\"$config_value\"" >>"$SCRIPT_CONFIG_FILE"
-        echo -e "Added $config_key=\"$config_value\" to $SCRIPT_CONFIG_FILE"
+# What a report needs first: the versions and the system.
+log_system() {
+    local os
+    os="$(sed -n 's/^PRETTY_NAME="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' /etc/os-release 2>/dev/null)" || true
+    log "D2Launcher $(version) on ${os:-an unknown system}, kernel $(uname -r), zenity $(zenity --version 2>/dev/null)"
+}
+
+# --- Interface
+
+# zenity in the launcher's look, run under the name d2launcher. zenity hands its
+# name to the desktop as the app id of its windows, so they go with the menu
+# entry and other zenity windows keep their own icon. zenity 4 shows the icon
+# in a dialog, older versions have no option for it.
+ui() {
+    (exec -a d2launcher zenity --title='' "${icon_option[@]}" "$@")
+}
+
+ui_info() {
+    ui --info --width=360 --text="$1" "${@:2}" || true
+}
+
+ui_error() {
+    ui --error --width=360 --text="$1" "${@:2}" || true
+}
+
+ui_ask() {
+    ui --question --width=360 --text="$1" "${@:2}"
+}
+
+# A text in a window of its own, monospaced and titled as the list it came from:
+# the settings and the script of a tweak.
+ui_text() {
+    ui --text-info --title="$1" --width=960 --height=680 --font=monospace "${@:2}"
+}
+
+# A list under the versions, its title over the first column, at the size of 4.x.
+ui_list() {
+    ui --list --width=450 --height=420 --text="$(header)\n" --column="$1" "${@:2}"
+}
+
+# A menu. Prints the line chosen, or ? for the help button, and logs it.
+ui_menu() {
+    local title="$1" back="$2" choice status=0
+    shift 2
+    choice="$(ui_list "$title" --ok-label=Ok --cancel-label="$back" --extra-button='?' "$@")" || status=$?
+    log "${title}: ${choice:-${back}}"
+    printf '%s' "$choice"
+    return "$status"
+}
+
+# The versions above every list: monospace and bold as in 4.x, the launcher in
+# a rust that light and dark themes both keep legible, Median XL and Wine in
+# the text color a quarter lighter.
+header() {
+    local mxl=off
+    [[ $median_xl == false ]] || mxl="$(installed_tag)"
+    printf '<span font_family="monospace" font="9"><b><span foreground="#C8401A">D2LAUNCHER | %s</span>\n<span alpha="76%%">MEDIAN XL  | %s\nWINE       | %s</span></b></span>' \
+        "$(esc "$(version)")" "$(esc "${mxl:-not installed}")" "$(esc "$(wine_name)")"
+}
+
+# Runs a command as a job behind a progress dialog and returns its status. The
+# dialog opens after half a second, follows the job's "# text" lines, and Cancel
+# stops the job with everything it started. What the job prints on stderr is in
+# the log before it ends.
+ui_progress() {
+    local cancel=() text pid feed status=0 started=$SECONDS _
+    if [[ $1 == --no-cancel ]]; then
+        cancel=(--no-cancel)
+        shift
+    fi
+    text="$1"
+    shift
+    log "${text}: started"
+    feed="$(mktemp -p "$run")"
+    set -m
+    { "$@" 2>&1 >&3 | log_stream launcher; } 3>"$feed" </dev/null 9>&- &
+    pid=$!
+    set +m
+    for _ in 1 2 3 4 5; do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.1
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        tail -s 0.2 -f --pid="$pid" "$feed" | {
+            ui --progress --pulsate --auto-close --width=360 --text="$(esc "$text")" "${cancel[@]}" ||
+                kill -- -"$pid" 2>/dev/null || true
+        }
+    fi
+    rm -f "$feed"
+    wait "$pid" || status=$?
+    if ((status == 0)); then
+        log "${text}: done in $((SECONDS - started)) s"
+    else
+        log "${text}: failed with status ${status}"
+    fi
+    return "$status"
+}
+
+# Text for the Pango markup of a zenity dialog, which reads \n as a new line.
+esc() {
+    local text="${1//\\/\\\\}"
+    text="${text//&/\&amp;}"
+    text="${text//</\&lt;}"
+    printf '%s' "${text//>/\&gt;}"
+}
+
+# A desktop notification, in the log as well. zenity sends it in the background.
+notify() {
+    log "$1"
+    ui --notification --text="$1" >/dev/null 2>&1 9>&- &
+}
+
+# The reference in the browser, or its address where no browser opens.
+open_docs() {
+    if command -v xdg-open >/dev/null; then
+        xdg-open "$DOCS_URL" >/dev/null 2>&1 9>&- &
+    else
+        ui_info "The reference is at\n${DOCS_URL}"
     fi
 }
 
-config_replace_property() {
-    local key=$1
-    local value=$2
-    config_check_property "$key" "$value"
-    sed -i "s#$key=.*#$key=\"$value\"#g" "$SCRIPT_CONFIG_FILE"
-    echo -e "Configuration: $key was set to \"$value\""
+# --- Wine
+
+# The Wine in use as the header names it: the bundled one by its release, any
+# other by the version it reports.
+wine_name() {
+    local name
+    name="$("$wine" --version 2>/dev/null)" || name='not installed'
+    if [[ $name == "$WINE_VERSION" ]]; then
+        name="${WINE_URL#*/download/}"
+        name="${name%%/*}"
+        name="${name/-/ }"
+        name="${name^}"
+    fi
+    printf '%s' "$name"
 }
 
-print_clean_filename() { echo "${*}" | tr -c '[:alnum:]-' '_' | sed 's/_$//'; }
-
-set_trap() {
-    rm -rf "$SCRIPT_TEMP_DIR"
+# A command with Wine as the launcher runs it: its prefix and WINE_OVERRIDES, no
+# Wine variable of the shell it was started from, and no flood of fixme lines.
+# What the launch options set comes after this and wins.
+with_wine() {
+    local name unset=()
+    while IFS= read -r name; do
+        [[ $name != WINE* ]] || unset+=(-u "$name")
+    done < <(compgen -e)
+    env "${unset[@]}" -- WINEPREFIX="$prefix" WINEDEBUG=fixme-all WINEDLLOVERRIDES="$WINE_OVERRIDES" "$@" 9>&-
 }
 
-# Set trap
-trap set_trap EXIT
+# The prefix set up or updated, within five minutes. Wine Mono and Gecko stay
+# out: their installers wait for a click in a window, and Median XL needs neither.
+setup_prefix() {
+    with_wine WINEDLLOVERRIDES="${WINE_OVERRIDES};mscoree=d;mshtml=d" timeout 300 "$wine" wineboot "$1" 2>&1 |
+        log_stream wine
+}
 
-# /////////////////////////////////////////////////////
-# START
-# /////////////////////////////////////////////////////
+# A Wine program, its output in the log.
+run_wine() {
+    with_wine "$wine" "$@" 2>&1 | log_stream wine
+}
 
-main "$@"
+# Wine, its prefix, and the save folder of Median XL. A bundled Wine of another
+# version than WINE_VERSION is replaced. The savegames go into the backup folder
+# first, then the new Wine updates the prefix.
+ready_wine() {
+    local installed=''
+    if [[ $wine == "${wine_home}/bin/wine" ]]; then
+        [[ ! -x $wine ]] || installed="$("$wine" --version 2>/dev/null)" || true
+        if [[ $installed != "$WINE_VERSION" ]]; then
+            if [[ -d $(saves) ]] && ! ui_progress 'Backing up the saves' zip_saves "$(saves_backup)"; then
+                ui_error "The saves could not be backed up before the new Wine.\n\n$(log_hint)"
+                return 1
+            fi
+            if ! ui_progress 'Downloading Wine' install_wine; then
+                ui_error "Wine could not be installed.\n\n$(log_hint)"
+                return 1
+            fi
+        fi
+    fi
+    if [[ ! -f ${prefix}/system.reg ]]; then
+        if ! ui_progress --no-cancel 'Setting up Wine' setup_prefix --init; then
+            with_wine "${wine%/*}/wineserver" -k || true
+            ui_error "Wine could not set up its prefix.\n\n$(log_hint)"
+            return 1
+        fi
+    elif [[ -n $installed && $installed != "$WINE_VERSION" ]] &&
+        ! ui_progress --no-cancel 'Updating the Wine prefix' setup_prefix --update; then
+        with_wine "${wine%/*}/wineserver" -k || true
+        ui_error "Wine could not update its prefix.\n\n$(log_hint)"
+        return 1
+    fi
+    if ! game_on_win7; then
+        ui_error "Wine could not set the Windows version of the game.\n\n$(log_hint)"
+        return 1
+    fi
+    log "Wine: $("$wine" --version 2>/dev/null) at ${wine}"
+    # Median XL fails with "Generic bad character" until its save folder exists.
+    [[ $median_xl == false ]] || mkdir -p "$(saves)/save"
+}
+
+# Diablo II 1.13, which Median XL builds on, asks for its disc on a Windows newer
+# than 7. Game.exe alone sees Windows 7, the rest of the prefix keeps Wine's.
+game_on_win7() {
+    local key
+    key="$(sed -n '/^\[Software\\\\Wine\\\\AppDefaults\\\\Game\.exe\]/,/^$/p' "${prefix}/user.reg")"
+    [[ $key != *'"Version"="win7"'* ]] || return 0
+    with_wine "$wine" reg add 'HKCU\Software\Wine\AppDefaults\Game.exe' /v Version /d win7 /f 2>&1 | log_stream wine
+}
+
+# The pinned Wine, checked against its sha256 and read back for its version.
+install_wine() {
+    local part="${wine_home}.part" tarball="${run}/wine.tar.xz"
+    if [[ $(uname -m) != x86_64 ]]; then
+        echo "The bundled Wine runs on x86_64, this is $(uname -m). Set wine to a Wine of your own." >&2
+        return 1
+    fi
+    fetch -o "$tarball" "$WINE_URL"
+    printf '%s  %s\n' "$WINE_SHA256" "$tarball" | LC_ALL=C sha256sum -c --quiet
+    rm -rf "$part"
+    mkdir -p "$part"
+    tar -xJf "$tarball" -C "$part" --strip-components=1
+    [[ "$("${part}/bin/wine" --version)" == "$WINE_VERSION" ]]
+    rm -rf "$wine_home" "$tarball"
+    mv "$part" "$wine_home"
+}
+
+# Where the game keeps the characters. Median XL keeps them in %APPDATA%,
+# Diablo II 1.14 in Saved Games, both under the user the prefix's registry
+# names: steamuser for Proton's Wine, the login for others. Diablo II before
+# 1.14, which still has a D2Client.dll, keeps them in the game folder.
+saves() {
+    local user
+    if [[ $median_xl == false && -f ${game}/D2Client.dll ]]; then
+        printf '%s/save' "$game"
+        return 0
+    fi
+    user="$(sed -n 's/^"AppData"="C:\\\\users\\\\\([^\\]*\)\\\\AppData\\\\Roaming"$/\1/p' "${prefix}/user.reg" 2>/dev/null)" || true
+    if [[ $median_xl == true ]]; then
+        printf '%s/drive_c/users/%s/AppData/Roaming/MedianXL' "$prefix" "${user:-${USER}}"
+    else
+        printf '%s/drive_c/users/%s/Saved Games/Diablo II' "$prefix" "${user:-${USER}}"
+    fi
+}
+
+run_program() {
+    local file
+    ready_wine || return 0
+    file="$(ui --file-selection --file-filter='Programs | *.exe *.msi')" || return 0
+    run_wine start /unix "$file" || true
+}
+
+reinstall_wine() {
+    if [[ $wine != "${wine_home}/bin/wine" ]]; then
+        ui_info "D2Launcher runs your Wine, $(esc "$wine"). The bundled one is not in use."
+        return 0
+    fi
+    ui_ask 'Download Wine again?' --ok-label=Download --cancel-label=Cancel || return 0
+    if ! ui_progress 'Downloading Wine' install_wine; then
+        ui_error "Wine could not be installed.\n\n$(log_hint)"
+        return 0
+    fi
+    notify 'Wine is installed.'
+}
+
+# --- The game
+
+# Everything a game needs, set up where it is missing: the game folder, Wine,
+# Median XL when it is on, and D2GL for -3dfx with its start values.
+ready() {
+    ready_game && ready_wine && ready_mxl && ready_glide && seed_d2gl
+}
+
+# The game, once it is ready. With d2stats on, D2Stats starts first and the game
+# through sigma-loader, which D2Stats reads it through. The launcher ends with
+# the game.
+start_game() {
+    local exe='Diablo II.exe'
+    ready || return 0
+    if [[ $d2stats == true ]]; then
+        ready_d2stats && ready_sigma_loader && start_d2stats || return 0
+        exe='sigma-loader.exe'
+    fi
+    launch "$exe"
+    exit 0
+}
+
+# The game in its folder, wrapped in the launch options as Steam does it:
+# %command% stands for the game, without it the options are its arguments.
+launch() {
+    local command=("$wine" "$1") options argv=() token found=false
+    read -ra options <<<"$launch_options"
+    for token in "${options[@]}"; do
+        [[ $token != \~/* ]] || token="${HOME}/${token#\~/}"
+        if [[ $token == '%command%' ]]; then
+            argv+=("${command[@]}")
+            found=true
+        else
+            argv+=("$token")
+        fi
+    done
+    "$found" || argv=("${command[@]}" "${argv[@]}")
+    log "Starting ${argv[*]}"
+    (cd "$game" && with_wine "${argv[@]}") 2>&1 | log_stream game || log "Diablo II ended with status $?"
+}
+
+# The game folder. A first start restores the backup or copies an installation.
+ready_game() {
+    [[ ! -d $game ]] || return 0
+    if [[ -f $(game_backup) ]] &&
+        ui_ask 'There is a backup of Diablo II. Restore it?' --ok-label=Restore --cancel-label='Choose a Folder'; then
+        ui_progress --no-cancel 'Restoring Diablo II' restore_game && return 0
+        ui_error "The backup could not be restored.\n\n$(log_hint)"
+        return 1
+    fi
+    setup_game
+}
+
+# Opens on an installation it finds. What the copy, its backup, Wine and Median
+# XL need is checked before anything is written.
+setup_game() {
+    local from found missing need free
+    ui_info 'Choose the folder of your Diablo II installation with Lord of Destruction. D2Launcher copies it and sets up the rest.'
+    found="$(find_game)"
+    from="$(ui --file-selection --directory ${found:+"--filename=${found}/"})" || return 1
+    from="${from%/}"
+    if [[ ${home}/ == "${from}"/* ]]; then
+        ui_error "$(esc "$from") holds D2Launcher itself. Choose the Diablo II folder."
+        return 1
+    fi
+    if [[ -z $(find "$from" -maxdepth 1 -iname game.exe -print -quit) ]]; then
+        ui_error "$(esc "$from") holds no Game.exe. Choose the Diablo II folder."
+        return 1
+    fi
+    missing="$(missing_mpqs "$from")"
+    if [[ -n $missing ]] && ! ui_ask "These files are missing: ${missing}\n\nWithout them Diablo II asks for its disc. Use the folder anyway?" \
+        --ok-label='Use Anyway' --cancel-label=Back --default-cancel; then
+        return 1
+    fi
+    # The copy and its backup take the folder twice, Wine with its prefix and
+    # Median XL with its store about 3 GiB.
+    need="$(du -sb "$from" | cut -f1)"
+    need=$((need * 2 + 3 * 1024 ** 3))
+    free="$(df --output=avail -B1 "$home" | tail -n 1)"
+    if ((free < need)); then
+        ui_error "Diablo II needs $(numfmt --to=iec-i "$need")B free in $(esc "$home"), there are $(numfmt --to=iec-i "$free")B."
+        return 1
+    fi
+    if ! ui_progress 'Copying Diablo II' copy_game "$from"; then
+        ui_error "Diablo II could not be copied.\n\n$(log_hint)"
+        return 1
+    fi
+    ui_progress 'Backing up Diablo II' backup_game || ui_error "The backup failed.\n\n$(log_hint)"
+    notify 'Diablo II is set up.'
+}
+
+# A folder that holds Diablo II where Wine, Lutris, Bottles, Steam or a mounted
+# disk put it, within five seconds. Empty for none.
+find_game() {
+    local data="${XDG_DATA_HOME:-${HOME}/.local/share}" root roots=() found
+    for root in "${HOME}/.wine" "${HOME}/Games" "${data}/bottles" "${data}/Steam/steamapps/compatdata" /run/media /media \
+        "${HOME}/Downloads"; do
+        [[ ! -d $root ]] || roots+=("$root")
+    done
+    ((${#roots[@]})) || return 0
+    found="$(timeout 5 find "${roots[@]}" -maxdepth 8 -iname d2exp.mpq -print -quit 2>/dev/null)" || true
+    [[ -z $found ]] || printf '%s' "${found%/*}"
+}
+
+missing_mpqs() {
+    local mpq file present=' '
+    for file in "$1"/*; do
+        file="${file##*/}"
+        present+="${file,,} "
+    done
+    for mpq in "${MPQS[@]}"; do
+        [[ $present == *" ${mpq}.mpq "* ]] || printf '%s.mpq ' "$mpq"
+    done
+}
+
+copy_game() {
+    rm -rf "${game}.part"
+    mkdir -p "${game%/*}"
+    cp -r --reflink=auto "$1" "${game}.part"
+    mv "${game}.part" "$game"
+}
+
+# D2GL for -3dfx where the game folder lacks a Glide wrapper. Median XL brings
+# one, Diablo II alone does not. Your tweak d2gl wins, as in the Tweaks menu.
+ready_glide() {
+    local tweak="${user_tweaks}/d2gl.sh"
+    [[ " ${launch_options} " == *' -3dfx '* && ! -f ${game}/glide3x.dll ]] || return 0
+    [[ -f $tweak ]] || tweak="${dir}/tweaks/d2gl.sh"
+    run_tweak D2GL "$tweak" && return 0
+    ui_error "D2GL could not be installed.\n\n$(log_hint)"
+    return 1
+}
+
+# Start values for a D2GL without settings: sharp upscaling and smooth motion,
+# the colors left as Blizzard made them. Each start D2GL reads its d2gl.ini and
+# writes it back whole, its own defaults filled in.
+seed_d2gl() {
+    [[ -f ${game}/d2gl.mpq && ! -f ${game}/d2gl.ini ]] || return 0
+    cat >"${game}/d2gl.ini.part" <<'EOF'
+[Screen]
+fullscreen=true
+[Graphic]
+shader_preset=xbr\xbr-lv2-sharp.slangp
+sharpen=true
+fxaa=true
+fxaa_preset=2
+[Feature]
+hd_cursor=true
+motion_prediction=true
+skip_intro=true
+EOF
+    mv -f "${game}/d2gl.ini.part" "${game}/d2gl.ini"
+    log "D2GL: start values in ${game}/d2gl.ini"
+}
+
+# --- Median XL
+
+# The installed Median XL, empty for none. 4.x wrote the name of its zip there,
+# d2launcher-mxl-2.14.6.
+installed_tag() {
+    local tag=''
+    [[ ! -f ${game}/d2launcher-patch.version ]] || tag="$(<"${game}/d2launcher-patch.version")"
+    printf '%s' "${tag#d2launcher-mxl-}"
+}
+
+# Before a game, the newest Median XL of the channel, unless you play the one you
+# have. The first one installs without a question. Without the server, the one
+# you have starts.
+ready_mxl() {
+    local latest installed
+    [[ $median_xl == true ]] || return 0
+    installed="$(installed_tag)"
+    if ! ui_progress 'Checking for Median XL updates' fetch_manifest; then
+        [[ -z $installed ]] || return 0
+        ui_error "Median XL is not installed, and its server is out of reach.\n\n$(log_hint)"
+        return 1
+    fi
+    latest="$(jq -r .tag "${run}/manifest.json")"
+    [[ $latest != "$installed" ]] || return 0
+    if [[ -n $installed ]] &&
+        ! ui_ask "Median XL ${latest} is available." --ok-label=Update --cancel-label="Play ${installed}"; then
+        return 0
+    fi
+    update_mxl "$latest"
+}
+
+check_mxl() {
+    local latest installed
+    ready_game || return 0
+    if ! ui_progress 'Checking for Median XL updates' fetch_manifest; then
+        ui_error "The Median XL server is out of reach.\n\n$(log_hint)"
+        return 0
+    fi
+    latest="$(jq -r .tag "${run}/manifest.json")"
+    installed="$(installed_tag)"
+    if [[ $latest == "$installed" ]]; then
+        ui_info "Median XL ${installed} is up to date."
+    elif ui_ask "Median XL ${latest} is available." --ok-label=Update --cancel-label=Later; then
+        update_mxl "$latest" || true
+    fi
+}
+
+# The manifest of the channel, checked before anything reads it.
+fetch_manifest() {
+    local manifest="${run}/manifest.json"
+    fetch --max-time 30 -o "${manifest}.part" "${MXL_URL/'{channel}'/$channel}"
+    jq -e '(.tag | type == "string" and test("^[0-9A-Za-z._-]+$")) and (.files | length > 0)' \
+        "${manifest}.part" >/dev/null
+    jq -r '.files[] | "\(.sha1)  \(.name)"' "${manifest}.part" >"${manifest}.list"
+    valid_list "${manifest}.list"
+    mv -f "${manifest}.part" "$manifest"
+}
+
+# A list of a version: a line per file, each as SUM_LINE has it.
+valid_list() {
+    if grep -qvE "$SUM_LINE" "$1"; then
+        echo "${1##*/} has a line that is no sha1 and file name" >&2
+        return 1
+    fi
+}
+
+update_mxl() {
+    if ! ui_progress "Downloading Median XL $1" store_version "$1"; then
+        ui_error "Median XL $1 could not be downloaded.\n\n$(log_hint)"
+        return 1
+    fi
+    apply_version "$1" && prune_store
+}
+
+# Brings a version into the store: its list, and each file the store lacks. A
+# file the game holds already is copied from there, any other is downloaded,
+# and each is checked against its sha1.
+store_version() {
+    local tag="$1" manifest="${run}/manifest.json" sum name url file n=0 total
+    mkdir -p "${patches}/files"
+    total="$(jq '.files | length' "$manifest")"
+    while IFS=$'\t' read -r sum name url; do
+        n=$((n + 1))
+        file="${patches}/files/${sum}"
+        [[ ! -f $file ]] || continue
+        if [[ -f ${game}/${name} && "$(sha1 "${game}/${name}")" == "$sum" ]]; then
+            cp --reflink=auto "${game}/${name}" "${file}.part"
+        else
+            echo "# Downloading ${name}, file ${n} of ${total}"
+            fetch -o "${file}.part" "$url"
+        fi
+        if [[ "$(sha1 "${file}.part")" != "$sum" ]]; then
+            echo "${name} does not match its sha1 ${sum}" >&2
+            return 1
+        fi
+        mv -f "${file}.part" "$file"
+    done < <(jq -r '.files[] | [.sha1, .name, .url] | @tsv' "$manifest")
+    jq -r '.files[] | "\(.sha1)  \(.name)"' "$manifest" >"${patches}/${tag}.sha1.part"
+    mv -f "${patches}/${tag}.sha1.part" "${patches}/${tag}.sha1"
+}
+
+sha1() {
+    local line
+    line="$(sha1sum "$1")"
+    printf '%s' "${line%% *}"
+}
+
+# Puts a version from the store into the game. A file that differs from what the
+# last update put there is yours: it stays unless you replace it.
+apply_version() {
+    local tag="$1" answer keep=()
+    mapfile -t keep < <(changed_files | grep -Fxf <(cut -c43- "${patches}/${tag}.sha1") || true)
+    if ((${#keep[@]})); then
+        answer="$(ui_ask "You changed these files since Median XL $(installed_tag):\n\n<tt>$(esc "$(printf '%s\n' "${keep[@]}")")</tt>\n\nKeep them?" \
+            --ok-label='Keep Mine' --extra-button=Replace --cancel-label=Cancel)" && answer=Keep || true
+        case $answer in
+        Keep) ;;
+        Replace) keep=() ;;
+        *) return 1 ;;
+        esac
+    fi
+    if ! ui_progress --no-cancel "Installing Median XL ${tag}" install_version "$tag" "${keep[@]}"; then
+        ui_error "Median XL ${tag} could not be installed.\n\n$(log_hint)"
+        return 1
+    fi
+    notify "Median XL ${tag} is installed."
+}
+
+# The files of the last update that differ now, one per line.
+changed_files() {
+    [[ -f ${game}/d2launcher-patch.sha1 ]] || return 0
+    (cd "$game" && LC_ALL=C sha1sum -c --quiet d2launcher-patch.sha1 2>/dev/null || true) |
+        sed -n 's/: FAILED$//p'
+}
+
+install_version() {
+    local tag="$1" list="${patches}/$1.sha1" sum name
+    local -A keep=() changed=() differ=()
+    shift
+    for name; do keep[$name]=1; done
+    while IFS= read -r name; do changed[$name]=1; done < <(changed_files)
+    cd "$game"
+    while IFS= read -r name; do differ[$name]=1; done < <(
+        LC_ALL=C sha1sum -c --quiet "$list" 2>/dev/null | sed -n 's/: FAILED\( open or read\)\{0,1\}$//p' || true
+    )
+    while read -r sum name; do
+        [[ -n ${differ[$name]:-} && -z ${keep[$name]:-} ]] || continue
+        cp --reflink=auto "${patches}/files/${sum}" "${name}.part"
+        mv -f "${name}.part" "$name"
+    done <"$list"
+    # What the last version brought and this one does not goes, unless it is yours.
+    if [[ -f d2launcher-patch.sha1 ]]; then
+        while IFS= read -r name; do
+            [[ -n ${changed[$name]:-} ]] || rm -f -- "$name"
+        done < <(comm -23 <(cut -c43- d2launcher-patch.sha1 | sort) <(cut -c43- "$list" | sort))
+    fi
+    # Read back: each file the update wrote is the one the list names.
+    while read -r sum name; do
+        [[ -n ${keep[$name]:-} ]] || printf '%s  %s\n' "$sum" "$name"
+    done <"$list" | LC_ALL=C sha1sum -c --quiet
+    cp "$list" d2launcher-patch.sha1.part
+    mv -f d2launcher-patch.sha1.part d2launcher-patch.sha1
+    printf '%s\n' "$tag" >d2launcher-patch.version.part
+    mv -f d2launcher-patch.version.part d2launcher-patch.version
+}
+
+# The versions in the store, newest first.
+versions() {
+    local list
+    for list in "${patches}"/*.sha1; do
+        list="${list##*/}"
+        printf '%s\n' "${list%.sha1}"
+    done | sort -rV
+}
+
+# The three newest versions stay in the store, and the installed one, each with
+# its files.
+prune_store() {
+    local tag installed name n=0
+    installed="$(installed_tag)"
+    while IFS= read -r tag; do
+        n=$((n + 1))
+        ((n <= 3)) || [[ $tag == "$installed" ]] || rm -f "${patches}/${tag}.sha1"
+    done < <(versions)
+    while IFS= read -r name; do
+        rm -f "${patches}/files/${name}"
+    done < <(comm -23 <(find "${patches}/files" -type f -printf '%f\n' | sort) \
+        <(cat "${patches}"/*.sha1 /dev/null | cut -c1-40 | sort -u))
+}
+
+choose_version() {
+    local tag installed choice rows=()
+    ready_game || return 0
+    installed="$(installed_tag)"
+    while IFS= read -r tag; do
+        if [[ $tag == "$installed" ]]; then
+            rows+=(TRUE "$tag" installed)
+        else
+            rows+=(FALSE "$tag" '')
+        fi
+    done < <(versions)
+    if ((${#rows[@]} == 0)); then
+        ui_info 'No Median XL version is stored yet. Check for an update first.'
+        return 0
+    fi
+    choice="$(ui_list '' --radiolist --column='Choose Version' --column='' --ok-label=Install --cancel-label=Back "${rows[@]}")" ||
+        return 0
+    [[ $choice != "$installed" ]] || ui_ask "Median XL ${choice} is installed. Install it again?" || return 0
+    apply_version "$choice" || true
+}
+
+# --- D2Stats
+
+ready_d2stats() {
+    [[ ! -f ${stats}/D2Stats.exe ]] || return 0
+    ui_progress 'Downloading D2Stats' install_d2stats && return 0
+    ui_error "D2Stats could not be installed.\n\n$(log_hint)"
+    return 1
+}
+
+# The newest D2Stats, with its settings, notifier rules and sounds kept.
+install_d2stats() {
+    local part="${stats}.part" zip="${run}/D2Stats.zip" item
+    fetch -o "$zip" "$D2STATS_URL"
+    rm -rf "$part"
+    mkdir -p "$part"
+    unzip -q "$zip" -d "$part"
+    for item in D2Stats.exe.ini NotifierRules Sounds; do
+        [[ -e ${stats}/${item} ]] || continue
+        rm -rf "${part:?}/${item}"
+        cp -a "${stats}/${item}" "$part/"
+    done
+    rm -rf "${stats}.old" "$zip"
+    [[ ! -d $stats ]] || mv "$stats" "${stats}.old"
+    mv "$part" "$stats"
+    rm -rf "${stats}.old"
+}
+
+ready_sigma_loader() {
+    [[ ! -f ${game}/sigma-loader.exe ]] || return 0
+    ui_progress 'Downloading sigma-loader' fetch_file "$SIGMA_LOADER_URL" "${game}/sigma-loader.exe" && return 0
+    ui_error "sigma-loader could not be downloaded.\n\n$(log_hint)"
+    return 1
+}
+
+# D2Stats, waited for up to 30 seconds, as the game has to start after it.
+start_d2stats() {
+    local _
+    pgrep -x D2Stats.exe >/dev/null && return 0
+    (cd "$stats" && with_wine "$wine" D2Stats.exe 2>&1 | log_stream d2stats) </dev/null 9>&- &
+    for _ in {1..60}; do
+        pgrep -x D2Stats.exe >/dev/null && return 0
+        sleep 0.5
+    done
+    ui_error "D2Stats did not start within 30 seconds.\n\n$(log_hint)"
+    return 1
+}
+
+update_d2stats() {
+    ui_ask 'Update D2Stats and sigma-loader to their newest releases? Your D2Stats settings, notifier rules and sounds stay.' \
+        --ok-label=Update --cancel-label=Cancel || return 0
+    ready_game || return 0
+    if ! ui_progress 'Downloading D2Stats' install_d2stats ||
+        ! ui_progress 'Downloading sigma-loader' fetch_file "$SIGMA_LOADER_URL" "${game}/sigma-loader.exe"; then
+        ui_error "D2Stats could not be installed.\n\n$(log_hint)"
+        return 0
+    fi
+    notify 'D2Stats is installed.'
+}
+
+# --- Tweaks
+
+# The tweaks D2Launcher brings and yours in ~/.d2launcher/tweaks, a script each.
+# Yours win over one of the same name. A tweak shows its script before it runs,
+# and what it printed last after.
+tweaks_menu() {
+    local -A path=()
+    local file name rows=() choice output status
+    for file in "${dir}"/tweaks/*.sh "${user_tweaks}"/*.sh; do
+        name="${file##*/}"
+        path[${name%.sh}]="$file"
+    done
+    while IFS= read -r name; do
+        [[ -n $name ]] || continue
+        rows+=("$name" "$(sed -n '2s/^# //p' "${path[$name]}")")
+    done < <(printf '%s\n' "${!path[@]}" | sort)
+    while true; do
+        choice="$(ui_list Tweaks --width=600 --column='' --ok-label=Ok --cancel-label=Back --extra-button='?' "${rows[@]}")" ||
+            true
+        case $choice in
+        '') return 0 ;;
+        '?')
+            open_docs
+            continue
+            ;;
+        esac
+        ui_text "$choice" --filename="${path[$choice]}" --ok-label=Install --cancel-label=Back >/dev/null || continue
+        ready_game || continue
+        status=0
+        run_tweak "$choice" "${path[$choice]}" || status=$?
+        output="$(tail -n 12 "${run}/tweak/tweak.log")"
+        output="${output:+\n\n<tt>$(esc "$output")</tt>}"
+        if ((status == 0)); then
+            ui_info "${choice} is installed.${output}"
+        else
+            ui_error "${choice} failed with status ${status}.${output}\n\n$(log_hint)"
+        fi
+    done
+}
+
+# A tweak runs in a folder of its own and finds the game in D2_DIR, the place for
+# its downloads in D2_CACHE. What it prints is in its folder as tweak.log.
+run_tweak() {
+    local work="${run}/tweak"
+    rm -rf "$work"
+    mkdir -p "$work" "${cache}/tweaks"
+    ui_progress "Installing $1" tweak_job "$2" "$work"
+}
+
+# What a tweak prints goes into tweak.log and into the log.
+tweak_job() {
+    (cd "$2" && D2_DIR="$game" D2_CACHE="${cache}/tweaks" WINEPREFIX="$prefix" bash "$1") 2>&1 |
+        tee "$2/tweak.log" | log_stream tweak
+}
+
+# --- Backups and savegames
+
+# The backup of the game folder, named after it.
+game_backup() {
+    printf '%s/%s.tar' "$backups" "${game##*/}"
+}
+
+backup_game() {
+    mkdir -p "$backups"
+    tar -cf "$(game_backup).part" -C "${game%/*}" "${game##*/}"
+    mv -f "$(game_backup).part" "$(game_backup)"
+}
+
+# The backup in a folder of its own first, then in place of the game. The saves
+# Diablo II before 1.14 keeps in the game folder stay.
+restore_game() {
+    local into="${game%/*}/restore"
+    rm -rf "$into" "${game}.old"
+    mkdir -p "$into"
+    tar -xf "$(game_backup)" -C "$into"
+    [[ ! -d $game ]] || mv "$game" "${game}.old"
+    mv "${into}/${game##*/}" "$game"
+    if [[ -d ${game}.old/save ]]; then
+        rm -rf "${game}/save"
+        mv "${game}.old/save" "${game}/save"
+    fi
+    rm -rf "${game}.old" "$into"
+}
+
+create_backup() {
+    ready_game || return 0
+    if ! ui_progress 'Backing up Diablo II' backup_game; then
+        ui_error "The backup failed.\n\n$(log_hint)"
+        return 0
+    fi
+    notify 'Diablo II is backed up.'
+}
+
+restore_backup() {
+    local when
+    when="$(date -r "$(game_backup)" '+%F %R')"
+    ui_ask "Restore the backup of ${when}?\n\nIt replaces the Diablo II folder, the saves stay. What else changed since then is lost." \
+        --ok-label=Restore --cancel-label=Cancel --default-cancel || return 0
+    if ! ui_progress --no-cancel 'Restoring Diablo II' restore_game; then
+        ui_error "The backup could not be restored.\n\n$(log_hint)"
+        return 0
+    fi
+    notify 'Diablo II is restored.'
+}
+
+# The savegames as a zip: for an export, and in the backup folder before
+# something could change them.
+zip_saves() {
+    mkdir -p "${1%/*}"
+    (cd "$(saves)" && zip -qr0 "$1" .)
+}
+
+# The name of a saves zip, by the game it is for.
+saves_name() {
+    if [[ $median_xl == true ]]; then
+        printf d2launcher-mxl-save
+    else
+        printf d2launcher-diablo2-save
+    fi
+}
+
+saves_backup() {
+    printf '%s/%s-%(%Y-%m-%d-%H%M%S)T.zip' "$backups" "$(saves_name)" -1
+}
+
+export_saves() {
+    local folder file
+    ready_wine || return 0
+    folder="$(ui --file-selection --directory)" || return 0
+    file="${folder}/$(saves_name)-$(date '+%Y-%m-%d-%H%M').zip"
+    if ! zip_saves "$file"; then
+        ui_error "The saves could not be exported.\n\n$(log_hint)"
+        return 0
+    fi
+    ui_info "Your saves are in\n$(esc "$file")"
+}
+
+# Imported savegames replace those of the same name. Those go into the backup
+# folder first.
+import_saves() {
+    local file saved
+    ready_wine || return 0
+    file="$(ui --file-selection --file-filter="Saves | $(saves_name)-*.zip")" || return 0
+    if ! unzip -tq "$file" >/dev/null; then
+        ui_error "$(esc "$file") is no readable zip."
+        return 0
+    fi
+    saved="$(saves_backup)"
+    if ! zip_saves "$saved" || ! unzip -qo "$file" -d "$(saves)"; then
+        ui_error "The saves could not be imported.\n\n$(log_hint)"
+        return 0
+    fi
+    ui_info "Your saves are imported. Those you had are in\n$(esc "$saved")"
+}
+
+# --- D2Launcher itself
+
+# The version a release stamped. Unstamped, a checkout is a pre-release of the
+# next patch, and anything else is unknown.
+version() {
+    local last
+    if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+        printf '%s\n' "$VERSION"
+    elif last="$(jq -er '."."' "${dir}/.release-please-manifest.json" 2>/dev/null)"; then
+        printf '%s.%s-dev\n' "${last%.*}" "$((${last##*.} + 1))"
+    else
+        echo unknown
+    fi
+}
+
+# Every request leaving the machine, bound to https, redirects included. A
+# transfer slower than 1 kB/s for a minute ends.
+fetch() {
+    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 10 \
+        --speed-limit 1024 --speed-time 60 "$@"
+}
+
+# A download into a file, whole or not at all.
+fetch_file() {
+    fetch -o "$2.part" "$1"
+    mv -f "$2.part" "$2"
+}
+
+# The newest release as tag, download and sha256, separated by tabs.
+fetch_release() {
+    fetch --max-time 30 "$RELEASE_URL" | jq -er '.tag_name as $tag | .assets[]
+        | select(.name == "d2launcher-\($tag).tar.gz") | [$tag, .browser_download_url, (.digest // "")] | @tsv' \
+        >"${run}/release.part"
+    mv -f "${run}/release.part" "${run}/release"
+}
+
+# A copy unpacked by hand: its folder is the user's. A package manager installs
+# into one that is not, and a checkout belongs to git.
+portable() {
+    [[ -w $dir && ! -e ${dir}/.git ]]
+}
+
+# A copy unpacked by hand updates itself. The package manager or git update the
+# others, so their menu has no entry for it.
+update_launcher() {
+    local latest url digest
+    if ! ui_progress 'Checking for D2Launcher updates' fetch_release; then
+        ui_error "The newest release cannot be read.\n\n$(log_hint)"
+        return 0
+    fi
+    IFS=$'\t' read -r latest url digest <"${run}/release"
+    if [[ $latest == "$(version)" ]]; then
+        ui_ask "D2Launcher ${latest} is up to date. Install it again?" --ok-label=Install --cancel-label=Cancel || return 0
+    else
+        ui_ask "D2Launcher ${latest} is available." --ok-label=Update --cancel-label=Later || return 0
+    fi
+    if ! ui_progress --no-cancel "Installing D2Launcher ${latest}" install_release "$latest" "$url" "$digest"; then
+        ui_error "D2Launcher ${latest} could not be installed.\n\n$(log_hint)"
+        return 0
+    fi
+    ui_info "D2Launcher ${latest} is installed and starts again."
+    rm -rf "$run"
+    exec "${dir}/d2launcher"
+}
+
+# Unpacked beside this copy, read back, then file by file renamed into place: the
+# running script keeps reading the file it opened.
+install_release() {
+    local work file
+    work="$(mktemp -d "${dir}/.update.XXXXXX")"
+    fetch -o "${work}/release.tar.gz" "$2"
+    [[ -z $3 ]] || printf '%s  %s\n' "${3#sha256:}" "${work}/release.tar.gz" | LC_ALL=C sha256sum -c --quiet
+    mkdir "${work}/new"
+    tar -xzf "${work}/release.tar.gz" -C "${work}/new" --strip-components=1
+    [[ "$(bash "${work}/new/d2launcher" --version)" == "$1" ]]
+    [[ -d ${work}/new/tweaks ]]
+    while IFS= read -r file; do
+        mv -f "${work}/new/${file}" "${dir}/${file}"
+    done < <(find "${work}/new" -maxdepth 1 -type f -printf '%f\n')
+    [[ ! -d ${dir}/tweaks ]] || mv "${dir}/tweaks" "${work}/old"
+    mv "${work}/new/tweaks" "${dir}/tweaks"
+    rm -rf "$work"
+}
+
+# At the start of a copy unpacked by hand: a notification when a newer release
+# is out.
+notify_update() {
+    local latest
+    portable || return 0
+    fetch_release 2> >(log_stream launcher) || return 0
+    latest="$(cut -f1 "${run}/release")"
+    [[ $latest == "$(version)" ]] || notify "D2Launcher ${latest} is available. Settings has Update D2Launcher."
+}
+
+# A copy unpacked by hand gets a menu entry of its own, pointing here. Otherwise
+# the package brings one, and the entry of a former copy goes.
+menu_entry() {
+    local entry="${XDG_DATA_HOME:-${HOME}/.local/share}/applications/d2launcher.local.desktop" line want=''
+    if ! portable; then
+        rm -f "$entry"
+        return 0
+    fi
+    while IFS= read -r line; do
+        case $line in
+        Exec=*) line="Exec=\"${dir}/d2launcher\"" ;;
+        Icon=*) line="Icon=${icon}" ;;
+        esac
+        want+="${line}"$'\n'
+    done <"${dir}/d2launcher.desktop"
+    [[ ! -f $entry || "$(<"$entry")"$'\n' != "$want" ]] || return 0
+    mkdir -p "${entry%/*}"
+    printf '%s' "$want" >"${entry}.part"
+    mv -f "${entry}.part" "$entry"
+}
+
+# --- Menus
+
+# Median XL only when it is on.
+main_menu() {
+    local choice items
+    while true; do
+        items=(Play)
+        [[ $median_xl == false ]] || items+=('Median XL')
+        items+=(Tweaks Settings)
+        choice="$(ui_menu Menu Exit "${items[@]}")" || true
+        case $choice in
+        Play) start_game ;;
+        'Median XL') mxl_menu ;;
+        Tweaks) tweaks_menu ;;
+        Settings) settings_menu ;;
+        '?') open_docs ;;
+        *) return 0 ;;
+        esac
+    done
+}
+
+mxl_menu() {
+    local choice
+    while true; do
+        choice="$(ui_menu 'Median XL' Back 'Check for Updates' 'Choose Version')" || true
+        case $choice in
+        'Check for Updates') check_mxl ;;
+        'Choose Version') choose_version ;;
+        '?') open_docs ;;
+        *) return 0 ;;
+        esac
+    done
+}
+
+# Only what can run: the launcher update for a copy unpacked by hand, the
+# D2Stats update when it is on. Read again after each action, which may change it.
+settings_menu() {
+    local choice items
+    while true; do
+        items=(Configuration Tools Backups)
+        ! portable || items+=('Update D2Launcher')
+        [[ $d2stats != true ]] || items+=('Update D2Stats')
+        choice="$(ui_menu Settings Back "${items[@]}")" || true
+        case $choice in
+        Configuration) edit_settings || true ;;
+        Tools) tools_menu ;;
+        Backups) backups_menu ;;
+        'Update D2Launcher') update_launcher ;;
+        'Update D2Stats') update_d2stats ;;
+        '?') open_docs ;;
+        *) return 0 ;;
+        esac
+    done
+}
+
+# cnc-ddraw Settings with its program in the game folder.
+tools_menu() {
+    local choice items
+    while true; do
+        items=('Wine Configuration')
+        [[ ! -f "${game}/cnc-ddraw config.exe" ]] || items+=('cnc-ddraw Settings')
+        items+=('Run Program' 'Reinstall Wine')
+        choice="$(ui_menu Tools Back "${items[@]}")" || true
+        case $choice in
+        'Wine Configuration') ready_wine && run_wine winecfg || true ;;
+        'cnc-ddraw Settings') ready_wine && (cd "$game" && run_wine 'cnc-ddraw config.exe') || true ;;
+        'Run Program') run_program ;;
+        'Reinstall Wine') reinstall_wine ;;
+        '?') open_docs ;;
+        *) return 0 ;;
+        esac
+    done
+}
+
+# Restore Backup only when there is a backup.
+backups_menu() {
+    local choice items
+    while true; do
+        items=('Create Backup')
+        [[ ! -f $(game_backup) ]] || items+=('Restore Backup')
+        items+=('Export Saves' 'Import Saves')
+        choice="$(ui_menu Backups Back "${items[@]}")" || true
+        case $choice in
+        'Create Backup') create_backup ;;
+        'Restore Backup') restore_backup ;;
+        'Export Saves') export_saves ;;
+        'Import Saves') import_saves ;;
+        '?') open_docs ;;
+        *) return 0 ;;
+        esac
+    done
+}
+
+# --- Migration
+
+# What older versions left, brought into today's form. Each step reads what is
+# there, so a second run changes nothing.
+migrate() {
+    migrate_portable
+    migrate_menu_entry
+    migrate_settings
+    migrate_tweaks
+    migrate_patches
+}
+
+# Before 4.0 the data lay beside the script, and 4.x copies kept res/ there.
+migrate_portable() {
+    local from to
+    portable || return 0
+    while read -r from to; do
+        [[ -e ${dir}/${from} && ! -e ${home}/${to} ]] || continue
+        mkdir -p "$(dirname "${home}/${to}")"
+        mv "${dir}/${from}" "${home}/${to}"
+        log "Moved ${dir}/${from} to ${home}/${to}"
+    done <<'EOF'
+d2launcher.conf d2launcher.conf
+.wineprefix wineprefix
+res/patches patches
+res/wine64 bin/wine
+res/d2-stats bin/d2-stats
+EOF
+    [[ ! -f ${dir}/res/d2-patch.zip ]] || rm -rf "${dir}/res"
+}
+
+# 4.0 named the menu entry of a copy d2launcher.desktop, the name of the package's.
+migrate_menu_entry() {
+    local entry="${XDG_DATA_HOME:-${HOME}/.local/share}/applications/d2launcher.desktop"
+    [[ -f $entry ]] && grep -q '^StartupWMClass=zenity$' "$entry" && rm -f "$entry" || true
+}
+
+# 4.x kept its settings as shell code, read with source, and wrote some of them
+# into every file. It is read that way one last time, in a shell of its own,
+# and kept as d2launcher.conf.bak.
+migrate_settings() {
+    local values=() options=() words=() line problem
+    [[ -f $conf ]] && grep -qE '^[[:space:]]*(d2_exe|d2_args|update_check|mxl_update_check|gui_width)=' "$conf" ||
+        return 0
+    # A file with a setting of today, set or commented out, has its form already.
+    # A 4.x start in between appended its defaults, and they go.
+    if grep -qE '^[[:space:]]*#?(launch_options|channel|wine|prefix)=' "$conf"; then
+        drop_4x_defaults
+        return 0
+    fi
+    # shellcheck disable=SC2016  # the old settings expand in the shell that reads them
+    mapfile -d '' values < <(env -i HOME="$HOME" USER="${USER:-}" PATH="$PATH" bash -c 'source "$1" >/dev/null 2>&1
+        printf "%s\0" "${d2_args-}" "${wine_init-}" "${custom_command-}" "${mxl_update_channel-}" \
+            "${wine_default-}" "${wineprefix-}" "${d2_exe-Diablo II.exe}"
+        env -0 -u HOME -u USER -u PATH -u PWD -u SHLVL -u _ -u OLDPWD' _ "$conf")
+    # Exported variables reached the game. Now they stand in front of it.
+    for line in "${values[@]:7}"; do
+        if [[ $line == *[[:space:]]* ]]; then
+            log "Settings: export ${line} holds a space and is left out"
+        else
+            options+=("$line")
+        fi
+    done
+    # custom_command replaced the game, wine_init stood in front of it.
+    if [[ -n ${values[2]} ]]; then
+        read -ra words <<<"${values[2]}"
+        options+=("${words[@]}" '%command%')
+    else
+        read -ra words <<<"${values[1]}"
+        options+=("${words[@]}")
+        ((${#options[@]} == 0)) || options+=('%command%')
+        read -ra words <<<"${values[0]}"
+        options+=("${words[@]}")
+    fi
+    settings_template >"${conf}.new"
+    set_setting "${conf}.new" launch_options "${options[*]}" -3dfx
+    set_setting "${conf}.new" channel "${values[3]}" public
+    set_setting "${conf}.new" wine "${values[4]}" "${wine_home}/bin/wine"
+    set_setting "${conf}.new" prefix "${values[5]}" "${home}/wineprefix"
+    problem="$(defaults && read_settings "${conf}.new")" || log "Settings: the new file says: ${problem}"
+    [[ ${values[6]} == 'Diablo II.exe' ]] || log "Settings: d2_exe=${values[6]} is gone, the game starts Diablo II.exe"
+    mv -f "$conf" "${conf}.bak"
+    mv -f "${conf}.new" "$conf"
+    notify "Your settings have a new form. The old ones are in ${conf}.bak."
+}
+
+# The settings 4.x appends to a file that lacks them, each a line of its own.
+drop_4x_defaults() {
+    local line kept=''
+    while IFS= read -r line || [[ -n $line ]]; do
+        if [[ $line =~ ^(d2_exe|d2_args|gui_width|gui_height|update_check|mxl_update_check|mxl_update_channel|d2_stats_tray)= ]]; then
+            log "Settings: ${line} goes, D2Launcher 4.x appended it"
+        else
+            kept+="${line}"$'\n'
+        fi
+    done <"$conf"
+    printf '%s' "$kept" >"${conf}.part"
+    mv -f "${conf}.part" "$conf"
+}
+
+# Sets a setting in a file from settings_template, unless it is the default.
+set_setting() {
+    local file="$1" key="$2" value="$3" default="$4" line text=''
+    [[ -n $value && $value != "$default" ]] || return 0
+    while IFS= read -r line; do
+        [[ $line != "${key}="* ]] || line="${key}=${value}"
+        text+="${line}"$'\n'
+    done <"$file"
+    printf '%s' "$text" >"$file"
+}
+
+# 4.x kept the tweaks in tweaks.db, between ###!> tweak_name lines. The two it
+# brought come with D2Launcher now, any other becomes a script of its own.
+migrate_tweaks() {
+    local db="${home}/tweaks.db" name='' body='' line file
+    [[ -f $db ]] || return 0
+    mkdir -p "$user_tweaks" "${cache}/tweaks" "$backups"
+    # 4.x downloaded beside the tweaks.
+    for file in "${user_tweaks}"/*.zip; do
+        mv -f "$file" "${cache}/tweaks/"
+    done
+    while IFS= read -r line || [[ -n $line ]]; do
+        case $line in
+        '###!> tweak_name: '*)
+            save_tweak "$name" "$body"
+            name="${line#'###!> tweak_name: '}"
+            body=''
+            ;;
+        '###!> tweak_version: '*) ;;
+        *) body+="${line}"$'\n' ;;
+        esac
+    done <"$db"
+    save_tweak "$name" "$body"
+    mv -f "$db" "${backups}/tweaks.db"
+}
+
+save_tweak() {
+    local name="$1" file
+    case $name in
+    '' | GavinK88/d2gl-mxl-1.0 | FunkyFr3sh/cnc-ddraw) return 0 ;;
+    esac
+    file="${name//[^[:alnum:]._-]/_}"
+    printf '#!/usr/bin/env bash\n# %s, from tweaks.db\n%s' "$name" "$2" >"${user_tweaks}/${file}.sh"
+    log "Tweaks: ${name} is now ${user_tweaks}/${file}.sh"
+}
+
+# 4.x kept each Median XL version as a zip of all its files. They move into the
+# store, each file once, and the installed version gets the list a later update
+# compares with.
+migrate_patches() {
+    local zip tag
+    for zip in "${patches}"/d2launcher-mxl-*.zip; do
+        tag="${zip##*/d2launcher-mxl-}"
+        tag="${tag%.zip}"
+        if ! ui_progress --no-cancel "Moving Median XL ${tag} into the new store" store_zip "$zip" "$tag"; then
+            ui_error "Median XL ${tag} could not move into the new store.\n\n$(log_hint)"
+            return 0
+        fi
+    done
+    tag="$(installed_tag)"
+    if [[ -n $tag && ! -f ${game}/d2launcher-patch.sha1 && -f ${patches}/${tag}.sha1 ]]; then
+        cp "${patches}/${tag}.sha1" "${game}/d2launcher-patch.sha1"
+    fi
+}
+
+store_zip() {
+    local zip="$1" tag="$2" work sum name
+    rm -rf "${patches}"/tmp.*
+    work="$(mktemp -d -p "$patches")"
+    mkdir -p "${patches}/files"
+    unzip -q "$zip" -d "$work"
+    (cd "$work" && find . -type f -printf '%P\0' | sort -z | xargs -0 -r sha1sum) >"${work}.sha1"
+    valid_list "${work}.sha1"
+    while read -r sum name; do
+        [[ -f ${patches}/files/${sum} ]] || mv "${work}/${name}" "${patches}/files/${sum}"
+    done <"${work}.sha1"
+    mv -f "${work}.sha1" "${patches}/${tag}.sha1"
+    rm -rf "$work" "$zip"
+}
+
+# --- Start
+
+# An unexpected failure. The launcher shows the command and stops, a job writes it
+# to the log, which the launcher then points to.
+failed() {
+    log "Failed with status $1 at line $2: $3"
+    if [[ $BASHPID == "$$" ]]; then
+        ui_error "D2Launcher stopped at line $2:\n\n<tt>$(esc "$3")</tt>\n\n$(log_hint)"
+    fi
+    exit "$1"
+}
+
+check_requirements() {
+    local command missing=() text
+    for command in "${REQUIRES[@]}"; do
+        command -v "$command" >/dev/null || missing+=("$command")
+    done
+    ((${#missing[@]})) || return 0
+    text="D2Launcher needs ${missing[*]}. Your package manager installs them."
+    echo "$text" >&2
+    ui_error "$text" 2>/dev/null
+    exit 1
+}
+
+main() {
+    set -Eeuo pipefail
+    shopt -s inherit_errexit nullglob
+    places
+    case ${1:-} in
+    --version)
+        version
+        return 0
+        ;;
+    '') ;;
+    *)
+        echo 'usage: d2launcher [--version]' >&2
+        return 2
+        ;;
+    esac
+    icon_option=()
+    check_requirements
+    [[ "$(zenity --version 2>/dev/null)" != [4-9]* ]] || icon_option=(--icon="$icon")
+    mkdir -p "$home" "$backups" "$cache"
+    exec 9>"${home}/d2launcher.lock"
+    if ! flock -n 9; then
+        ui --notification --text='D2Launcher is running already.' >/dev/null 2>&1 9>&- &
+        return 0
+    fi
+    rotate_logs
+    trap 'failed $? "$LINENO" "$BASH_COMMAND"' ERR
+    run="$(mktemp -d -p "$cache" run.XXXXXX)"
+    trap 'rm -rf "$run"' EXIT
+    log_system
+    migrate
+    load_settings
+    log "Settings: launch_options=${launch_options} channel=${channel} wine=${wine} prefix=${prefix} median_xl=${median_xl} d2stats=${d2stats}"
+    menu_entry
+    notify_update 9>&- &
+    # A first start sets everything up, so the menu opens ready to play.
+    [[ -d $game ]] || ready || true
+    main_menu
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    main "$@"
+fi

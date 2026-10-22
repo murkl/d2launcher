@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# df for the tests, as the launcher asks it: the bytes free, from $STUB/free if
+# a test sets them, else a terabyte.
+set -euo pipefail
+
+echo Avail
+cat "${STUB}/free" 2>/dev/null || echo 1000000000000
