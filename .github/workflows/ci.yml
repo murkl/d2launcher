@@ -5,7 +5,10 @@
 name: CI
 
 on:
+  # GitHub holds runs for the release pull request until someone approves them.
+  # It changes only these files and gets its checks from the release job.
   pull_request:
+    paths-ignore: [CHANGELOG.md, .release-please-manifest.json]
   push:
     branches: [main]
   schedule:
@@ -83,9 +86,8 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         id: please
 
-      # The workflow's own token starts no run on the pull request it writes. That
-      # changes only the changelog and the version, which no check reads, so the
-      # checks main just passed are its own.
+      # The release pull request changes only the changelog and the version, which
+      # no check reads. Its checks are the ones main just passed.
       - if: steps.please.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
