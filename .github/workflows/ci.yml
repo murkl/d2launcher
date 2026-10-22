@@ -1,0 +1,149 @@
+# Pull requests and main are checked, monthly against the newest distributions
+# too. Merging the release pull request tags the version, publishes it and
+# pushes the AUR package.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 1 * *'
+
+permissions: {}
+
+# Every step in bash with pipefail, as the Makefile runs its recipes.
+defaults:
+  run:
+    shell: bash
+
+# A new push replaces a pull request's run. main queues, so no release is cut
+# short.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # make check on Arch, as the machines it runs on.
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # The date names the base, the digest pins it. Publish and the Makefile use the same.
+    container: archlinux:base-devel-20261011.0.609700@sha256:061679925e5d5028f2df9395d441ce6c4b9accf0157ff3486c06b6962e014ef1
+    permissions:
+      contents: read
+    steps:
+      - run: pacman -Syu --noconfirm --needed make git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: |
+          read -ra packages < <(make -s packages)
+          pacman -S --noconfirm --needed "${packages[@]}"
+
+      - run: make check
+
+  # D2Launcher's Wine on Arch, Debian, Ubuntu, Fedora and openSUSE with what the
+  # project names for each, monthly, as they move under it.
+  distros:
+    name: Distros
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: make distro-check
+
+  # The release pull request, or once that is merged, the tag and the release,
+  # for a main that passed Check.
+  release:
+    name: Release
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      statuses: write
+    outputs:
+      version: ${{ steps.please.outputs.version }}
+      tag: ${{ steps.please.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+        id: please
+
+      # The workflow's own token starts no run on the pull request it writes. That
+      # changes only the changelog and the version, which no check reads, so the
+      # checks main just passed are its own.
+      - if: steps.please.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.please.outputs.pr }}
+        run: |
+          sha="$(gh pr view "$(jq -r .number <<<"$PR")" --json headRefOid --jq .headRefOid)"
+          for check in Check Title; do
+            gh api --silent "repos/{owner}/{repo}/statuses/${sha}" -f state=success -f context="$check"
+          done
+
+  # The tarball of make dist on its release, the AUR files for it, built once as
+  # a user builds them, then pushed with a key only main may use. Re-running the
+  # failed job does it all again with the tarball already there.
+  publish:
+    name: Publish
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: archlinux:base-devel-20261011.0.609700@sha256:061679925e5d5028f2df9395d441ce6c4b9accf0157ff3486c06b6962e014ef1
+    environment: aur
+    permissions:
+      contents: write  # the tarball on the release
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - run: pacman -Syu --noconfirm --needed make git jq namcap openssh github-cli
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      # Packed once and kept on the release, so the sum in the AUR never changes.
+      # makepkg takes it beside the PKGBUILD.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tar="d2launcher-${VERSION}.tar.gz"
+          mkdir -p target
+          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          if grep -qxF "$tar" <<<"$assets"; then
+            gh release download "$TAG" --pattern "$tar" --dir target
+          else
+            make dist VERSION="$VERSION"
+            gh release upload "$TAG" "target/${tar}"
+          fi
+          tools/aur.sh stamp "$VERSION" "target/${tar}" target/aur
+          tools/aur.sh build target/aur
+
+      - env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          if [ -z "$AUR_SSH_KEY" ]; then
+            echo "::error::The environment aur has no secret AUR_SSH_KEY. tools/aur.sh key sets it, then rerun this job."
+            exit 1
+          fi
+          tools/aur.sh push target/aur

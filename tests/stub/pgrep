@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# pgrep for the tests: D2Stats.exe runs once the Wine stub started it.
+[[ " $* " == *' D2Stats.exe '* && -e ${STUB}/D2Stats.exe ]]

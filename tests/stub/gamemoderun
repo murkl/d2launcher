@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# GameMode for the tests: it runs what it wraps.
+exec "$@"

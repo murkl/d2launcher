@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# curl for the tests: the URL is the last argument, $STUB/web/<sha1 of it> the
+# answer. Without one it fails as curl -f does on a 404. Each URL lands in
+# $STUB/requests.
+set -euo pipefail
+
+out=''
+while (($# > 1)); do
+    [[ $1 != -o ]] || out="$2"
+    shift
+done
+printf '%s\n' "$1" >>"${STUB}/requests"
+sum="$(printf '%s' "$1" | sha1sum)"
+file="${STUB}/web/${sum%% *}"
+[[ -f $file ]] || exit 22
+if [[ -n $out ]]; then
+    cp "$file" "$out"
+else
+    cat "$file"
+fi

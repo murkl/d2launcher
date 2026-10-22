@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# zenity for the tests. Each call lands in $STUB/calls. Messages and progress
+# need no answer, every other dialog takes the next line of $STUB/answers:
+# its status, a tab, and what it prints, with \n for a new line. Without an
+# answer left, the dialog is cancelled.
+set -euo pipefail
+
+printf '%s\n' "$*" >>"${STUB}/calls"
+case " $* " in
+*' --version '*)
+    echo 4.2.2
+    exit 0
+    ;;
+*' --progress '*)
+    cat >/dev/null
+    exit 0
+    ;;
+*' --info '* | *' --error '* | *' --notification '*) exit 0 ;;
+esac
+answer=''
+if [[ -s ${STUB}/answers ]]; then
+    IFS= read -r answer <"${STUB}/answers"
+    sed -i '1d' "${STUB}/answers"
+fi
+[[ -n $answer ]] || exit 1
+output="${answer#*$'\t'}"
+[[ -z $output ]] || printf '%b\n' "$output"
+exit "${answer%%$'\t'*}"

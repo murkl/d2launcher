@@ -1,0 +1,11 @@
+# Two defaults relaxed: the declarations are prose, and a workflow's `on:` is a key.
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  truthy:
+    check-keys: false
+
+# What git leaves out is no source either.
+ignore-from-file: .gitignore
