@@ -1,0 +1,92 @@
+# A version tag on main publishes the release and pushes the AUR package.
+
+name: Release
+
+on:
+  push:
+    tags: ['*']
+
+permissions: {}
+
+# Every step in bash with pipefail, as the Makefile runs its recipes.
+defaults:
+  run:
+    shell: bash
+
+# A tag's run is never cut short.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # The tag on main and its notes, or a failure before anything is published.
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.notes.outputs.version }}
+      notes: ${{ steps.notes.outputs.notes }}
+    steps:
+      - id: notes
+        uses: murkl/workflows/notes@21fff230679db7d36e4b6a456297e7eabec34b73  # 1.0.0
+
+  # The release with its notes and the tarball of make dist, the AUR files for
+  # it, built once as a user builds them, then pushed with a key only tags may
+  # use. Re-running the failed job does it all again with the release and the
+  # tarball already there.
+  publish:
+    name: Publish
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: archlinux:base-devel-20261011.0.609700@sha256:061679925e5d5028f2df9395d441ce6c4b9accf0157ff3486c06b6962e014ef1
+    environment: aur
+    permissions:
+      contents: write  # the release and its tarball
+    env:
+      TAG: ${{ needs.release.outputs.version }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - run: pacman -Syu --noconfirm --needed make git jq namcap openssh github-cli
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NOTES: ${{ needs.release.outputs.notes }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 ||
+            gh release create "$TAG" --verify-tag --latest --title "$TAG" --notes "$NOTES"
+
+      # Packed once and kept on the release, so the sum in the AUR never changes.
+      # makepkg takes it beside the PKGBUILD.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tar="d2launcher-${VERSION}.tar.gz"
+          mkdir -p target
+          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          if grep -qxF "$tar" <<<"$assets"; then
+            gh release download "$TAG" --pattern "$tar" --dir target
+          else
+            make dist VERSION="$VERSION"
+            gh release upload "$TAG" "target/${tar}"
+          fi
+          tools/aur.sh stamp "$VERSION" "target/${tar}" target/aur
+          tools/aur.sh build target/aur
+
+      - env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          if [ -z "$AUR_SSH_KEY" ]; then
+            echo "::error::The environment aur has no secret AUR_SSH_KEY. tools/aur.sh key sets it, then rerun this job."
+            exit 1
+          fi
+          tools/aur.sh push target/aur

@@ -41,7 +41,7 @@ lint:
 	yamllint -s .
 	actionlint
 	zizmor --offline --quiet .github/workflows
-	[ "$$(sed -n 's/^ *container: //p' .github/workflows/ci.yml | sort -u)" = '$(IMAGE)' ]
+	[ "$$(sed -n 's/^ *container: //p' .github/workflows/*.yml | sort -u)" = '$(IMAGE)' ]
 
 test:
 	bats tests
