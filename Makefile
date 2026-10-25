@@ -25,7 +25,7 @@ DISTROS := \
 BANNER_PACKAGES := chromium otf-cormorant xorg-server-xvfb imagemagick pngquant zenity adwaita-fonts librsvg jq
 
 # The shell code. d2launcher and the stubs carry no extension, so the lint names them.
-SCRIPTS := d2launcher tweaks/*.sh tools/*.sh tests/stub/* docs/*.sh .github/*.sh
+SCRIPTS := d2launcher tweaks/*.sh tools/*.sh tests/stub/* docs/*.sh
 
 .PHONY: all check lint test dist aur-check distro-check run banner packages github clean
 
@@ -88,10 +88,11 @@ banner:
 packages:
 	@echo $(PACKAGES)
 
-# The repository's settings on GitHub, out of .github/settings/. Run by hand as
-# an admin: a workflow may not change the rules it is held to.
+# The repository's settings on GitHub, out of .github/settings/, by murkl/workflows
+# checked out next to this project. Run by hand as an admin: a workflow may not
+# change the rules it is held to.
 github:
-	.github/settings.sh
+	../workflows/settings/settings.sh
 
 clean:
 	rm -rf target

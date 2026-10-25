@@ -35,6 +35,6 @@ A version tag on an up-to-date `main` releases. The run publishes the release wi
 - `AUR_SSH_KEY` from `tools/aur.sh key`, whose public half goes into the AUR account. Only version tags may use it
 - A Publish that failed runs again with **Re-run failed jobs**. Tags never move, so a fix after a release is a new version
 
-`make github` applies `.github/settings/` to the repository. `ruleset-tags.json` keeps every tag from being moved or deleted.
+`make github` applies `.github/settings/` to the repository, with murkl/workflows checked out next to this project. `ruleset-tags.json` keeps every tag from being moved or deleted.
 
 **Note:** _The social preview is `docs/banner.png`, uploaded by hand under **Settings › General › Social preview**: GitHub has no API for it._
