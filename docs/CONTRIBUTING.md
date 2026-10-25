@@ -1,6 +1,6 @@
 # Contributing
 
-Every change comes back to `main` as one squash commit under its pull request title, in **[Conventional Commits](https://www.conventionalcommits.org)**, which sorts it into the release notes.
+Every change comes back to `main` as one squash commit under its pull request title, in **[Conventional Commits](https://www.conventionalcommits.org)**, which sorts it into the release notes. Written as a short phrase a user understands, the notes show it from a capital: `fix: the launcher finds Wine on Fedora` becomes `* The launcher finds Wine on Fedora`.
 
 ## Commands
 

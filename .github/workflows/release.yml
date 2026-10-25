@@ -31,7 +31,7 @@ jobs:
       notes: ${{ steps.notes.outputs.notes }}
     steps:
       - id: notes
-        uses: murkl/workflows/notes@21fff230679db7d36e4b6a456297e7eabec34b73  # 1.0.0
+        uses: murkl/workflows/notes@961fe2d3d2e4409ee836e5893f503e6038ce7c41  # 1.1.0
 
   # The release with its notes and the tarball of make dist, the AUR files for
   # it, built once as a user builds them, then pushed with a key only tags may
