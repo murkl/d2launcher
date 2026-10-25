@@ -150,6 +150,14 @@ setup() {
     [ "$("${app}/d2launcher" --version)" = unknown ]
 }
 
+@test "a checkout is a pre-release of the patch after its last release tag" {
+    export GIT_CONFIG_NOSYSTEM=1
+    git -C "$app" init -q
+    git -C "$app" -c user.name=test -c user.email=test@example.com commit -q --allow-empty -m 'feat: a'
+    git -C "$app" tag 4.1.3
+    [ "$("${app}/d2launcher" --version)" = 4.1.4-dev ]
+}
+
 @test "a checkout is no copy to update or to give a menu entry" {
     mkdir "${app}/.git"
     run launcher portable

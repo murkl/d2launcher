@@ -105,8 +105,9 @@ push() {
 }
 
 # The release's own key for the AUR: made here, kept only as the secret
-# AUR_SSH_KEY of the environment aur, which main alone may use. Prints the
-# public half for the AUR account's SSH Public Key field, as one more line there.
+# AUR_SSH_KEY of the environment aur, which version tags alone may use. Prints
+# the public half for the AUR account's SSH Public Key field, as one more line
+# there.
 key() {
     local repo
     repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
@@ -119,7 +120,7 @@ key() {
 JSON
     # One that exists already answers 303, and gh follows it there.
     gh api --method POST "repos/${repo}/environments/aur/deployment-branch-policies" \
-        -f name=main -f type=branch >/dev/null
+        -f name="*.*.*" -f type=tag >/dev/null
     gh secret set AUR_SSH_KEY --env aur --repo "$repo" <"${work}/key"
 
     echo "Add this line at https://aur.archlinux.org/account/ under SSH Public Key:"

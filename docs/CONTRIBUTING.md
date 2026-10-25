@@ -1,6 +1,6 @@
 # Contributing
 
-Every change comes back to `main` as one squash commit under its pull request title, in **[Conventional Commits](https://www.conventionalcommits.org)**: `fix:` releases a patch, `feat:` a minor and `feat!:` a major version.
+Every change comes back to `main` as one squash commit under its pull request title, in **[Conventional Commits](https://www.conventionalcommits.org)**, which sorts it into the release notes.
 
 ## Commands
 
@@ -25,10 +25,16 @@ sudo pacman -S --needed docker $(make -s packages)
 
 ## Releasing
 
-Merging the pull request `chore: release x.y.z` tags the version, publishes the release with the tarball of `make dist` and pushes the AUR package. The workflow's own token writes that pull request and reports the checks `main` passed on it. The push to the AUR needs the secret `AUR_SSH_KEY` from `tools/aur.sh key`, which only `main` may use. Its public half goes into the AUR account.
+A version tag on an up-to-date `main` releases. The run publishes the release with its notes and the tarball of `make dist`, then pushes the AUR package. The notes and their checks come from **[murkl/workflows](https://github.com/murkl/workflows)**, checked out next to this project:
 
-A Publish that failed runs again with **Re-run failed jobs** on its run.
+```
+../workflows/notes/notes.sh 4.2.0 && git tag 4.2.0 && git push origin 4.2.0
+```
 
-`make github` applies `.github/settings/` to the repository. It lets workflows open pull requests, for the release pull request.
+- `fix:` raises the patch, `feat:` the minor, `feat!:` the major version
+- `AUR_SSH_KEY` from `tools/aur.sh key`, whose public half goes into the AUR account. Only version tags may use it
+- A Publish that failed runs again with **Re-run failed jobs**. Tags never move, so a fix after a release is a new version
+
+`make github` applies `.github/settings/` to the repository. `ruleset-tags.json` keeps every tag from being moved or deleted.
 
 **Note:** _The social preview is `docs/banner.png`, uploaded by hand under **Settings › General › Social preview**: GitHub has no API for it._
