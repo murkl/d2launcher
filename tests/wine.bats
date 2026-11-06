@@ -8,6 +8,19 @@ setup() {
     game="${d2}/bin/diablo2"
 }
 
+# A Wine that reports wine-new, on the stubbed web and pinned by the launcher.
+publish_wine() {
+    local new="${BATS_TEST_TMPDIR}/new" sum
+    mkdir -p "${new}/wine-new/bin"
+    printf '#!/usr/bin/env bash\n[[ ${1:-} != --version ]] || exec echo wine-new\nexec %q "$@"\n' \
+        "${BATS_TEST_DIRNAME}/stub/wine" >"${new}/wine-new/bin/wine"
+    chmod +x "${new}/wine-new/bin/wine"
+    tar -cJf "${new}.tar.xz" -C "$new" wine-new
+    serve https://get.example/wine.tar.xz <"${new}.tar.xz"
+    sum="$(sha256sum "${new}.tar.xz")"
+    pin_wine https://get.example/wine.tar.xz "${sum%% *}" wine-new
+}
+
 @test "Wine variables of the shell stay away from the game, the launch options reach it" {
     fake_wine
     mkdir -p "$game"
@@ -19,21 +32,14 @@ setup() {
 }
 
 @test "a bundled Wine of another version gives way, after the savegames are saved" {
-    local saves="${d2}/wineprefix/drive_c/users/steamuser/AppData/Roaming/MedianXL" new="${BATS_TEST_TMPDIR}/new" sum
+    local saves="${d2}/wineprefix/drive_c/users/steamuser/AppData/Roaming/MedianXL"
     fake_wine
     STUB_WINE_VERSION=wine-old run launcher 'run_wine wineboot --init'
     mkdir -p "${saves}/save"
     printf 'hero' >"${saves}/save/hero.d2s"
-    mkdir -p "${new}/wine-new/bin"
-    printf '#!/usr/bin/env bash\n[[ ${1:-} != --version ]] || exec echo wine-new\nexec %q "$@"\n' \
-        "${BATS_TEST_DIRNAME}/stub/wine" >"${new}/wine-new/bin/wine"
-    chmod +x "${new}/wine-new/bin/wine"
-    tar -cJf "${new}.tar.xz" -C "$new" wine-new
-    serve https://get.example/wine.tar.xz <"${new}.tar.xz"
-    sum="$(sha256sum "${new}.tar.xz")"
+    publish_wine
     : >"${STUB}/wine"
-    STUB_WINE_VERSION=wine-old run launcher \
-        "WINE_URL=https://get.example/wine.tar.xz WINE_SHA256=${sum%% *} WINE_VERSION=wine-new && ready_wine"
+    STUB_WINE_VERSION=wine-old run launcher ready_wine
     [ "$status" -eq 0 ]
     [ "$(STUB_WINE_VERSION=wine-old "${d2}/bin/wine/bin/wine" --version)" = wine-new ]
     run unzip -p "${d2}"/backup/d2launcher-mxl-save-*.zip save/hero.d2s
@@ -42,12 +48,36 @@ setup() {
     grep -q 'launcher  Wine: wine-new at ' "${d2}/logs/d2launcher.log"
 }
 
+@test "a new Wine goes ahead without savegames to save" {
+    fake_wine
+    mkdir -p "${d2}/wineprefix/drive_c/users/player/Saved Games/Diablo II"
+    touch "${d2}/wineprefix/system.reg"
+    printf 'median_xl=false\n' >"${d2}/d2launcher.conf"
+    publish_wine
+    STUB_WINE_VERSION=wine-old run launcher 'use_settings && ready_wine'
+    [ "$status" -eq 0 ]
+    grep -qx 'arg=--update' "${STUB}/wine"
+    [ -z "$(ls "${d2}/backup")" ]
+}
+
 @test "a Wine download with another sha256 leaves the Wine in place" {
     fake_wine
-    printf 'not a wine' | serve https://get.example/wine.tar.xz
-    run launcher "WINE_URL=https://get.example/wine.tar.xz WINE_SHA256=$(printf '0%.0s' {1..64}) WINE_VERSION=wine-new && install_wine"
-    [ "$status" -ne 0 ]
+    publish_wine
+    pin_wine https://get.example/wine.tar.xz "$(printf '0%.0s' {1..64})" wine-new
+    answer 0
+    STUB_WINE_VERSION=wine-old run launcher reinstall_wine
+    [ "$status" -eq 0 ]
+    grep -q 'Wine could not be installed' "${STUB}/calls"
     [ "$(STUB_WINE_VERSION=wine-old "${d2}/bin/wine/bin/wine" --version)" = wine-old ]
+}
+
+@test "a failed Wine download leaves the Wine in place" {
+    fake_wine
+    answer 0
+    run launcher reinstall_wine
+    [ "$status" -eq 0 ]
+    grep -q 'Wine could not be installed' "${STUB}/calls"
+    [ "$("${d2}/bin/wine/bin/wine" --version)" = "$STUB_WINE_VERSION" ]
 }
 
 @test "the bundled Wine of the pinned version stays and sets up the prefix" {

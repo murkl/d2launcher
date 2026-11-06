@@ -1,10 +1,12 @@
-# Pull requests are checked, and main monthly against the newest distributions
-# too.
+# Pull requests and main are checked, main monthly against the newest
+# distributions too.
 
 name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   schedule:
     - cron: '0 6 1 * *'
 
@@ -14,11 +16,6 @@ permissions: {}
 defaults:
   run:
     shell: bash
-
-# A new push replaces a pull request's run.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # make check on Arch, as the machines it runs on.

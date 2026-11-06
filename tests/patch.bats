@@ -56,6 +56,30 @@ sum() {
     [ "$status" -ne 0 ]
 }
 
+@test "Check for Updates writes nothing from a manifest that names a path" {
+    printf 'evil' | serve https://get.example/x
+    jq -n --arg s "$(sum evil)" '{tag: "1.0", files: [{name: "../evil.dll", sha1: $s, url: "https://get.example/x"}]}' |
+        serve https://launcher.median-xl.com/mxl/release/public/manifest
+    answer 0
+    run launcher check_mxl
+    [ "$status" -eq 0 ]
+    grep -q 'The Median XL server is out of reach' "${STUB}/calls"
+    [ ! -e "${d2}/bin/evil.dll" ]
+    [ ! -e "${game}/d2launcher-patch.version" ]
+}
+
+@test "a file that fails its read back leaves the version as it is" {
+    publish_mxl 1.0 a.mpq=alpha
+    launcher 'fetch_manifest && store_version 1.0 && install_version 1.0'
+    publish_mxl 1.1 a.mpq=beta
+    launcher 'fetch_manifest && store_version 1.1'
+    printf 'rotten' >"${d2}/patches/files/$(sum beta)"
+    run launcher 'apply_version 1.1'
+    [ "$status" -eq 1 ]
+    grep -q 'Median XL 1.1 could not be installed' "${STUB}/calls"
+    [ "$(cat "${game}/d2launcher-patch.version")" = 1.0 ]
+}
+
 @test "a file you changed stays, unless you replace it, and what a version drops goes" {
     publish_mxl 1.0 ddraw.dll=mxl old.mpq=old
     launcher 'fetch_manifest && store_version 1.0 && install_version 1.0'
@@ -100,6 +124,16 @@ sum() {
     cmp "${d2}/patches/2.14.6.sha1" "${game}/d2launcher-patch.sha1"
     run launcher installed_tag
     [ "$output" = 2.14.6 ]
+}
+
+@test "a broken 4.x zip stays where it is" {
+    mkdir -p "${d2}/patches"
+    printf 'no zip' >"${d2}/patches/d2launcher-mxl-1.0.zip"
+    run launcher migrate_patches
+    [ "$status" -eq 0 ]
+    grep -q 'Median XL 1.0 could not move into the new store' "${STUB}/calls"
+    [ -e "${d2}/patches/d2launcher-mxl-1.0.zip" ]
+    [ ! -e "${d2}/patches/1.0.sha1" ]
 }
 
 @test "the store keeps the three newest versions and the installed one" {

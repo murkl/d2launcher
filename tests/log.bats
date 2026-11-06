@@ -18,8 +18,14 @@ setup() {
 @test "a job logs its start, its errors and how it ended" {
     run launcher 'ui_progress Testing bash -c "echo broken >&2; exit 3" || true; cat "$logfile"'
     [[ ${lines[0]} == *'  launcher  Testing: started' ]]
-    [[ ${lines[1]} == *'  launcher  broken' ]]
-    [[ ${lines[2]} == *'  launcher  Testing: failed with status 3' ]]
+    [[ "${lines[*]}" == *'  launcher  broken '* ]]
+    [[ "${lines[*]}" == *'  launcher  Failed with status 3 at line '* ]]
+    [[ ${lines[-1]} == *'  launcher  Testing: failed with status 3' ]]
+}
+
+@test "a last line without a new line reaches the log" {
+    run launcher 'printf "first\nlast" | log_stream wine; cat "$logfile"'
+    [[ ${lines[1]} == *'  wine      last' ]]
 }
 
 @test "each start writes a log of its own, and the four before stay" {

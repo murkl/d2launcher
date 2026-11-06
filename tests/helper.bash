@@ -18,8 +18,7 @@ setup_launcher() {
 # in a shell of its own, with the settings at their defaults.
 launcher() {
     bash -c 'source "$1"
-        set -Eeuo pipefail
-        shopt -s inherit_errexit nullglob
+        strict
         places
         defaults
         icon_option=()
@@ -44,6 +43,20 @@ serve() {
 fake_wine() {
     mkdir -p "${d2}/bin/wine/bin"
     ln -s "${BATS_TEST_DIRNAME}/stub/wine" "${d2}/bin/wine/bin/wine"
+}
+
+# A program first on the PATH, in place of the real one or its stub: the bash code given.
+replace_program() {
+    mkdir -p "${BATS_TEST_TMPDIR}/bin"
+    printf '#!/usr/bin/env bash\n%s\n' "$2" >"${BATS_TEST_TMPDIR}/bin/$1"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/$1"
+    export PATH="${BATS_TEST_TMPDIR}/bin:${PATH}"
+}
+
+# The Wine the launcher of the tests pins, in its file, as a job reads it from there.
+pin_wine() {
+    sed -i -e "s|^WINE_URL=.*|WINE_URL='$1'|" -e "s|^WINE_SHA256=.*|WINE_SHA256='$2'|" \
+        -e "s|^WINE_VERSION=.*|WINE_VERSION='$3'|" "${app}/d2launcher"
 }
 
 # A Median XL version on the stubbed server: a file per argument, name=content.
