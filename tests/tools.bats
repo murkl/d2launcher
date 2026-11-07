@@ -8,11 +8,28 @@ setup() {
     game="${d2}/bin/diablo2"
 }
 
+# A release 9.9.9 on the stubbed web, under the sha256 named, by default its own.
+publish_release() {
+    local release="${BATS_TEST_TMPDIR}/release/d2launcher-9.9.9" sum
+    mkdir -p "${release}/tweaks"
+    cp -r "${app}"/{d2launcher,d2launcher.desktop,d2launcher.svg} "$release/"
+    sed -i "s/^VERSION='{{VERSION}}'$/VERSION='9.9.9'/" "${release}/d2launcher"
+    printf 'echo new\n' >"${release}/tweaks/new.sh"
+    tar -czf "${BATS_TEST_TMPDIR}/release.tar.gz" -C "${BATS_TEST_TMPDIR}/release" d2launcher-9.9.9
+    serve https://get.example/release.tar.gz <"${BATS_TEST_TMPDIR}/release.tar.gz"
+    sum="$(sha256sum "${BATS_TEST_TMPDIR}/release.tar.gz")"
+    jq -n --arg digest "sha256:${1:-${sum%% *}}" \
+        '{tag_name: "9.9.9", assets: [{name: "d2launcher-9.9.9.tar.gz", browser_download_url: "https://get.example/release.tar.gz", digest: $digest}]}' |
+        serve https://api.github.com/repos/murkl/d2launcher/releases/latest
+}
+
 @test "a failed D2Stats download keeps the D2Stats you have" {
-    mkdir -p "${d2}/bin/d2-stats"
+    mkdir -p "$game" "${d2}/bin/d2-stats"
     printf 'old' >"${d2}/bin/d2-stats/D2Stats.exe"
-    run launcher install_d2stats
-    [ "$status" -ne 0 ]
+    answer 0
+    run launcher update_d2stats
+    [ "$status" -eq 0 ]
+    grep -q 'D2Stats could not be installed' "${STUB}/calls"
     [ "$(cat "${d2}/bin/d2-stats/D2Stats.exe")" = old ]
 }
 
@@ -51,6 +68,25 @@ setup() {
     [ "$(cat "${game}/save/hero.d2s")" = hero ]
 }
 
+@test "a restore from a broken backup keeps the game folder" {
+    mkdir -p "$game" "${d2}/backup"
+    printf 'mine' >"${game}/Game.exe"
+    printf 'no tar' >"${d2}/backup/diablo2.tar"
+    answer 0
+    run launcher restore_backup
+    [ "$status" -eq 0 ]
+    grep -q 'The backup could not be restored' "${STUB}/calls"
+    [ "$(cat "${game}/Game.exe")" = mine ]
+}
+
+@test "a backup that fails keeps the one before" {
+    mkdir -p "${d2}/backup"
+    printf 'old' >"${d2}/backup/diablo2.tar"
+    run launcher 'ui_progress Backup backup_game || echo failed'
+    [ "$output" = failed ]
+    [ "$(cat "${d2}/backup/diablo2.tar")" = old ]
+}
+
 @test "a folder without Game.exe, or without the space for the rest, is refused before a copy" {
     local from="${BATS_TEST_TMPDIR}/d2"
     mkdir -p "$from"
@@ -64,7 +100,7 @@ setup() {
     answer 0 "$from"
     run launcher setup_game
     [ "$status" -eq 1 ]
-    grep -Eq -- "--error --width=360 --text=Diablo II needs [0-9.]+GiB free in ${d2}, there are 1000B." "${STUB}/calls"
+    grep -Eq -- "--error --width=360 --text=Diablo II needs [0-9.,]+GiB free in ${d2}, there are 1000B." "${STUB}/calls"
     [ ! -e "$game" ]
 }
 
@@ -91,8 +127,9 @@ setup() {
 }
 
 @test "a copy that fails leaves no half game folder" {
-    run launcher 'copy_game /no/such/folder'
-    [ "$status" -ne 0 ]
+    replace_program cp 'mkdir -p "${@: -1}"; exit 1'
+    run launcher 'ui_progress Copy copy_game "$HOME" || echo failed'
+    [ "$output" = failed ]
     [ ! -e "$game" ]
 }
 
@@ -126,16 +163,56 @@ setup() {
     [ "$output" = mine ]
 }
 
+@test "an import needs no saves folder, and only saves you had go into the backup folder" {
+    local zip="${BATS_TEST_TMPDIR}/d2launcher-diablo2-save-1.zip"
+    mkdir -p "${BATS_TEST_TMPDIR}/import" "${d2}/wineprefix"
+    printf 'theirs' >"${BATS_TEST_TMPDIR}/import/hero.d2s"
+    (cd "${BATS_TEST_TMPDIR}/import" && zip -q "$zip" hero.d2s)
+    touch "${d2}/wineprefix/system.reg"
+    printf 'median_xl=false\n' >"${d2}/d2launcher.conf"
+    fake_wine
+    answer 0 "$zip"
+    run launcher 'use_settings && import_saves'
+    [ "$status" -eq 0 ]
+    [ "$(cat "${d2}/wineprefix/drive_c/users/player/Saved Games/Diablo II/hero.d2s")" = theirs ]
+    grep -q -- '--info --width=360 --text=Your saves are imported.$' "${STUB}/calls"
+    [ -z "$(ls "${d2}/backup")" ]
+}
+
+@test "an import that fails keeps the saves you had" {
+    local saves="${d2}/wineprefix/drive_c/users/player/AppData/Roaming/MedianXL"
+    mkdir -p "${saves}/save" "${BATS_TEST_TMPDIR}/import"
+    printf 'mine' >"${saves}/save/hero.d2s"
+    printf 'theirs' >"${BATS_TEST_TMPDIR}/import/other.d2s"
+    (cd "${BATS_TEST_TMPDIR}/import" && zip -q "${BATS_TEST_TMPDIR}/d2launcher-mxl-save-1.zip" other.d2s)
+    touch "${d2}/wineprefix/system.reg"
+    fake_wine
+    replace_program zip 'echo "zip: no space" >&2; exit 14'
+    answer 0 "${BATS_TEST_TMPDIR}/d2launcher-mxl-save-1.zip"
+    run launcher import_saves
+    [ "$status" -eq 0 ]
+    grep -q 'The saves could not be imported' "${STUB}/calls"
+    [ ! -e "${saves}/other.d2s" ]
+    grep -q '  launcher  zip: no space' "${d2}/logs/d2launcher.log"
+}
+
+@test "an export packs the savegames into a zip" {
+    local saves="${d2}/wineprefix/drive_c/users/player/AppData/Roaming/MedianXL"
+    mkdir -p "${saves}/save" "${BATS_TEST_TMPDIR}/out"
+    printf 'hero' >"${saves}/save/hero.d2s"
+    touch "${d2}/wineprefix/system.reg"
+    fake_wine
+    answer 0 "${BATS_TEST_TMPDIR}/out"
+    run launcher export_saves
+    [ "$status" -eq 0 ]
+    run unzip -p "${BATS_TEST_TMPDIR}"/out/d2launcher-mxl-save-*.zip save/hero.d2s
+    [ "$output" = hero ]
+}
+
 @test "a copy unpacked by hand updates itself file by file from a release" {
-    local release="${BATS_TEST_TMPDIR}/release/d2launcher-9.9.9" sum
-    mkdir -p "${release}/tweaks"
-    cp -r "${app}"/{d2launcher,d2launcher.desktop,d2launcher.svg} "$release/"
-    sed -i "s/^VERSION='{{VERSION}}'$/VERSION='9.9.9'/" "${release}/d2launcher"
-    printf 'echo new\n' >"${release}/tweaks/new.sh"
-    tar -czf "${BATS_TEST_TMPDIR}/release.tar.gz" -C "${BATS_TEST_TMPDIR}/release" d2launcher-9.9.9
-    serve https://get.example/release.tar.gz <"${BATS_TEST_TMPDIR}/release.tar.gz"
-    sum="$(sha256sum "${BATS_TEST_TMPDIR}/release.tar.gz")"
-    run launcher "install_release 9.9.9 https://get.example/release.tar.gz sha256:${sum%% *}"
+    publish_release
+    answer 0
+    run launcher update_launcher
     [ "$status" -eq 0 ]
     [ "$("${app}/d2launcher" --version)" = 9.9.9 ]
     [ "$(ls "${app}/tweaks")" = new.sh ]
@@ -143,11 +220,26 @@ setup() {
     [ "${lines[*]}" = 'd2launcher d2launcher.desktop d2launcher.svg tweaks' ]
 }
 
-@test "a release with another sha256 is not installed" {
-    printf 'not a release' | serve https://get.example/release.tar.gz
-    run launcher "install_release 9.9.9 https://get.example/release.tar.gz sha256:$(printf '0%.0s' {1..64})"
-    [ "$status" -ne 0 ]
+@test "a release with another sha256 is not installed, and nothing of it stays" {
+    publish_release "$(printf '0%.0s' {1..64})"
+    answer 0
+    run launcher update_launcher
+    [ "$status" -eq 0 ]
+    grep -q 'D2Launcher 9.9.9 could not be installed' "${STUB}/calls"
     [ "$("${app}/d2launcher" --version)" = unknown ]
+    run ls -A "$app"
+    [ "${lines[*]}" = 'd2launcher d2launcher.desktop d2launcher.svg tweaks' ]
+}
+
+@test "a copy unpacked by hand hears of a newer release, without one of nothing" {
+    run launcher notify_update
+    [ "$status" -eq 0 ]
+    run grep -c 'is available' "${d2}/logs/d2launcher.log"
+    [ "$output" -eq 0 ]
+    publish_release
+    run launcher notify_update
+    [ "$status" -eq 0 ]
+    grep -q 'D2Launcher 9.9.9 is available' "${d2}/logs/d2launcher.log"
 }
 
 @test "a checkout is a pre-release of the patch after its last release tag" {

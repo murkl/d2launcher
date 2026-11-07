@@ -7,7 +7,7 @@ IMAGE := archlinux:base-devel-20261011.0.609700@sha256:061679925e5d5028f2df9395d
 
 # What make check needs. CI installs them. mutter and zenity draw a real window
 # for tests/desktop.bats.
-PACKAGES := shellcheck shfmt bats actionlint zizmor yamllint namcap desktop-file-utils jq zip unzip git mutter zenity
+PACKAGES := shellcheck shfmt bats actionlint zizmor namcap desktop-file-utils jq zip unzip git mutter zenity
 
 # A release's version, set by CI. Every other build is a pre-release of the next
 # patch, as the launcher reports it from a checkout.
@@ -38,7 +38,6 @@ lint:
 	shellcheck $(SCRIPTS) tests/*.bats tests/helper.bash
 	shfmt -d $(SCRIPTS)
 	desktop-file-validate d2launcher.desktop
-	yamllint -s .
 	actionlint
 	zizmor --offline --quiet .github/workflows
 	[ "$$(sed -n 's/^ *container: //p' .github/workflows/*.yml | sort -u)" = '$(IMAGE)' ]

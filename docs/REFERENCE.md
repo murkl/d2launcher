@@ -20,7 +20,7 @@
 | Launch Options | Starts |
 | --- | --- |
 | `-3dfx` | D2GL, which Median XL brings |
-| `-ddraw` | cnc-ddraw, which Median XL brings |
+| `-ddraw` | D2GL over DirectDraw, cnc-ddraw after its tweak |
 | `-3dfx -w` | In a window |
 | `-3dfx -skiptobnet` | At the Median XL login |
 | `-3dfx -ns` | Without sound |
@@ -34,7 +34,7 @@
 
 ## Graphics
 
-`-3dfx` starts D2GL, `-ddraw` starts cnc-ddraw. Each keeps its settings in the game folder, and updates leave them as they are.
+`-3dfx` starts D2GL. `-ddraw` starts the `ddraw.dll` of the game folder: D2GL from Median XL, or cnc-ddraw after its tweak. Each keeps its settings in the game folder, and updates leave them as they are.
 
 | Renderer | Settings | File |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ D2Launcher keeps Wine apart from the system:
 - `Game.exe` alone sees Windows 7. On a newer one, Diablo II 1.13 asks for its disc
 - The prefix is `~/.d2launcher/wineprefix`, never `~/.wine`
 
-**Settings › Tools** opens the Wine configuration and the cnc-ddraw settings, runs any Windows program in the prefix, and downloads Wine again.
+**Settings › Tools** opens the Wine configuration and, after its tweak, the cnc-ddraw settings, runs any Windows program in the prefix, and downloads Wine again.
 
 ## Median XL
 
@@ -87,7 +87,7 @@ A tweak is a script that changes the game folder. It shows its script, and **Ins
 | `cnc-ddraw` | The newest cnc-ddraw with its settings program |
 | `d2gl` | The newest D2GL, for Median XL or for Diablo II |
 
-Median XL brings both. **Play** runs `d2gl` by itself when `-3dfx` finds no `glide3x.dll`.
+Median XL brings D2GL. **Play** runs `d2gl` by itself when `-3dfx` finds no `glide3x.dll`.
 
 A tweak of your own is `~/.d2launcher/tweaks/<name>.sh`, its second line a comment that says what it does. It replaces a tweak of the same name. It runs in a folder of its own, with these variables:
 

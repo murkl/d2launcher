@@ -13,11 +13,6 @@ defaults:
   run:
     shell: bash
 
-# A tag's run is never cut short.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   # The tag on main and its notes, or a failure before anything is published.
   release:
@@ -35,8 +30,7 @@ jobs:
 
   # The release with its notes and the tarball of make dist, the AUR files for
   # it, built once as a user builds them, then pushed with a key only tags may
-  # use. Re-running the failed job does it all again with the release and the
-  # tarball already there.
+  # use. Re-running the failed job does it all again.
   publish:
     name: Publish
     needs: release
@@ -47,10 +41,9 @@ jobs:
     permissions:
       contents: write  # the release and its tarball
     env:
-      TAG: ${{ needs.release.outputs.version }}
       VERSION: ${{ needs.release.outputs.version }}
     steps:
-      - run: pacman -Syu --noconfirm --needed make git jq namcap openssh github-cli
+      - run: pacman -Syu --noconfirm --needed make git namcap openssh github-cli
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -61,25 +54,19 @@ jobs:
           GH_REPO: ${{ github.repository }}
           NOTES: ${{ needs.release.outputs.notes }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 ||
-            gh release create "$TAG" --verify-tag --latest --title "$TAG" --notes "$NOTES"
+          gh release view "$VERSION" >/dev/null 2>&1 ||
+            gh release create "$VERSION" --verify-tag --latest --title "$VERSION" --notes "$NOTES"
 
-      # Packed once and kept on the release, so the sum in the AUR never changes.
-      # makepkg takes it beside the PKGBUILD.
+      # make dist writes the same bytes on a rerun, so the sum in the AUR stays.
+      # makepkg takes the tarball beside the PKGBUILD.
       - env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tar="d2launcher-${VERSION}.tar.gz"
-          mkdir -p target
-          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
-          if grep -qxF "$tar" <<<"$assets"; then
-            gh release download "$TAG" --pattern "$tar" --dir target
-          else
-            make dist VERSION="$VERSION"
-            gh release upload "$TAG" "target/${tar}"
-          fi
-          tools/aur.sh stamp "$VERSION" "target/${tar}" target/aur
+          tar="target/d2launcher-${VERSION}.tar.gz"
+          make dist VERSION="$VERSION"
+          gh release upload "$VERSION" "$tar" --clobber
+          tools/aur.sh stamp "$VERSION" "$tar" target/aur
           tools/aur.sh build target/aur
 
       - env:

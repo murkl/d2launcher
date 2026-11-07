@@ -12,7 +12,7 @@ VERSION='{{VERSION}}'
 WINE_URL='https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz'
 WINE_SHA256='f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595'
 WINE_VERSION='wine-11.0-gdc26e618470 (Proton)'
-# cnc-ddraw, which Median XL brings, loads as on Windows: before Wine's own ddraw.
+# The ddraw.dll of the game folder loads as on Windows: before Wine's own.
 # Windows programs get no menu entries or file types in the desktop.
 WINE_OVERRIDES='ddraw=n,b;winemenubuilder.exe=d'
 # The newest on purpose: a Median XL update can need a new D2Stats the same day.
@@ -217,7 +217,7 @@ log() {
 # Every line of a stream into the log, under the source named.
 log_stream() {
     local line
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n $line ]]; do
         log "$line" "$1"
     done
 }
@@ -314,7 +314,7 @@ ui_progress() {
     log "${text}: started"
     feed="$(mktemp -p "$run")"
     set -m
-    { "$@" 2>&1 >&3 | log_stream launcher; } 3>"$feed" </dev/null 9>&- &
+    { job "$@" 2>&1 >&3 | log_stream launcher; } 3>"$feed" </dev/null 9>&- &
     pid=$!
     set +m
     for _ in 1 2 3 4 5; do
@@ -324,8 +324,8 @@ ui_progress() {
     if kill -0 "$pid" 2>/dev/null; then
         tail -s 0.2 -f --pid="$pid" "$feed" | {
             ui --progress --pulsate --auto-close --width=360 --text="$(esc "$text")" "${cancel[@]}" ||
-                kill -- -"$pid" 2>/dev/null || true
-        }
+                ((${#cancel[@]})) || kill -- -"$pid" 2>/dev/null
+        } || true
     fi
     rm -f "$feed"
     wait "$pid" || status=$?
@@ -335,6 +335,23 @@ ui_progress() {
         log "${text}: failed with status ${status}"
     fi
     return "$status"
+}
+
+# A job runs in a bash of its own, with the state it reads of this one. Bash ignores
+# errexit in whatever a condition calls, subshells too, and ui_progress is called from one.
+job() {
+    # shellcheck disable=SC2016  # the new bash expands them
+    bash -c 'source "$1"
+        job_start
+        eval "$2"
+        "${@:3}"' _ "${dir}/d2launcher" "$(declare -p run game channel wine prefix median_xl)" "$@"
+}
+
+# The start of a job in its bash: a failure stops it, and the log names the command.
+job_start() {
+    strict
+    places
+    trap 'log "Failed with status $? at line $LINENO: $BASH_COMMAND"' ERR
 }
 
 # Text for the Pango markup of a zenity dialog, which reads \n as a new line.
@@ -407,7 +424,7 @@ ready_wine() {
     if [[ $wine == "${wine_home}/bin/wine" ]]; then
         [[ ! -x $wine ]] || installed="$("$wine" --version 2>/dev/null)" || true
         if [[ $installed != "$WINE_VERSION" ]]; then
-            if [[ -d $(saves) ]] && ! ui_progress 'Backing up the saves' zip_saves "$(saves_backup)"; then
+            if has_saves && ! ui_progress 'Backing up the saves' zip_saves "$(saves_backup)"; then
                 ui_error "The saves could not be backed up before the new Wine.\n\n$(log_hint)"
                 return 1
             fi
@@ -480,6 +497,10 @@ saves() {
     else
         printf '%s/drive_c/users/%s/Saved Games/Diablo II' "$prefix" "${user:-${USER}}"
     fi
+}
+
+has_saves() {
+    [[ -n $(find "$(saves)" -type f -print -quit 2>/dev/null) ]]
 }
 
 run_program() {
@@ -862,6 +883,8 @@ choose_version() {
         ui_info 'No Median XL version is stored yet. Check for an update first.'
         return 0
     fi
+    # A radio list without a choice prints nothing, so the newest stands in.
+    [[ " ${rows[*]} " == *' TRUE '* ]] || rows[0]=TRUE
     choice="$(ui_list '' --radiolist --column='Choose Version' --column='' --ok-label=Install --cancel-label=Back "${rows[@]}")" ||
         return 0
     [[ $choice != "$installed" ]] || ui_ask "Median XL ${choice} is installed. Install it again?" || return 0
@@ -1057,7 +1080,7 @@ export_saves() {
     ready_wine || return 0
     folder="$(ui --file-selection --directory)" || return 0
     file="${folder}/$(saves_name)-$(date '+%Y-%m-%d-%H%M').zip"
-    if ! zip_saves "$file"; then
+    if ! ui_progress 'Exporting the saves' zip_saves "$file"; then
         ui_error "The saves could not be exported.\n\n$(log_hint)"
         return 0
     fi
@@ -1075,11 +1098,21 @@ import_saves() {
         return 0
     fi
     saved="$(saves_backup)"
-    if ! zip_saves "$saved" || ! unzip -qo "$file" -d "$(saves)"; then
+    if { has_saves && ! ui_progress 'Backing up the saves' zip_saves "$saved"; } ||
+        ! ui_progress --no-cancel 'Importing the saves' unzip_saves "$file"; then
         ui_error "The saves could not be imported.\n\n$(log_hint)"
         return 0
     fi
-    ui_info "Your saves are imported. Those you had are in\n$(esc "$saved")"
+    if [[ -f $saved ]]; then
+        ui_info "Your saves are imported. Those you had are in\n$(esc "$saved")"
+    else
+        ui_info 'Your saves are imported.'
+    fi
+}
+
+unzip_saves() {
+    mkdir -p "$(saves)"
+    unzip -qo "$1" -d "$(saves)"
 }
 
 # --- D2Launcher itself
@@ -1091,8 +1124,7 @@ version() {
     if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
         printf '%s\n' "$VERSION"
     elif [[ -e ${dir}/.git ]] && last="$(git -C "$dir" describe --tags --abbrev=0 \
-        --match '[0-9]*.[0-9]*.[0-9]*' --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null)"; then
-        last="${last#v}"
+        --match '[0-9]*.[0-9]*.[0-9]*' 2>/dev/null)"; then
         printf '%s.%s-dev\n' "${last%.*}" "$((${last##*.} + 1))"
     else
         echo unknown
@@ -1150,10 +1182,11 @@ update_launcher() {
 }
 
 # Unpacked beside this copy, read back, then file by file renamed into place: the
-# running script keeps reading the file it opened.
+# running script keeps reading the file it opened. The folder goes in any case.
 install_release() {
-    local work file
+    local file
     work="$(mktemp -d "${dir}/.update.XXXXXX")"
+    trap 'rm -rf "$work"' EXIT
     fetch -o "${work}/release.tar.gz" "$2"
     [[ -z $3 ]] || printf '%s  %s\n' "${3#sha256:}" "${work}/release.tar.gz" | LC_ALL=C sha256sum -c --quiet
     mkdir "${work}/new"
@@ -1165,7 +1198,6 @@ install_release() {
     done < <(find "${work}/new" -maxdepth 1 -type f -printf '%f\n')
     [[ ! -d ${dir}/tweaks ]] || mv "${dir}/tweaks" "${work}/old"
     mv "${work}/new/tweaks" "${dir}/tweaks"
-    rm -rf "$work"
 }
 
 # At the start of a copy unpacked by hand: a notification when a newer release
@@ -1173,7 +1205,7 @@ install_release() {
 notify_update() {
     local latest
     portable || return 0
-    fetch_release 2> >(log_stream launcher) || return 0
+    job fetch_release 2> >(log_stream launcher) || return 0
     latest="$(cut -f1 "${run}/release")"
     [[ $latest == "$(version)" ]] || notify "D2Launcher ${latest} is available. Settings has Update D2Launcher."
 }
@@ -1273,13 +1305,14 @@ tools_menu() {
     done
 }
 
-# Restore Backup only when there is a backup.
+# Restore Backup only with a backup, Export Saves only with saves.
 backups_menu() {
     local choice items
     while true; do
         items=('Create Backup')
         [[ ! -f $(game_backup) ]] || items+=('Restore Backup')
-        items+=('Export Saves' 'Import Saves')
+        ! has_saves || items+=('Export Saves')
+        items+=('Import Saves')
         choice="$(ui_menu Backups Back "${items[@]}")" || true
         case $choice in
         'Create Backup') create_backup ;;
@@ -1474,8 +1507,8 @@ store_zip() {
 
 # --- Start
 
-# An unexpected failure. The launcher shows the command and stops, a job writes it
-# to the log, which the launcher then points to.
+# An unexpected failure. The launcher shows the command and stops, what runs in its
+# background writes it to the log.
 failed() {
     log "Failed with status $1 at line $2: $3"
     if [[ $BASHPID == "$$" ]]; then
@@ -1496,9 +1529,14 @@ check_requirements() {
     exit 1
 }
 
-main() {
+# The rules of the launcher and of each job.
+strict() {
     set -Eeuo pipefail
     shopt -s inherit_errexit nullglob
+}
+
+main() {
+    strict
     places
     case ${1:-} in
     --version)
@@ -1525,6 +1563,8 @@ main() {
     run="$(mktemp -d -p "$cache" run.XXXXXX)"
     trap 'rm -rf "$run"' EXIT
     log_system
+    # A job hands the settings on, in a migration too.
+    defaults
     migrate
     load_settings
     log "Settings: launch_options=${launch_options} channel=${channel} wine=${wine} prefix=${prefix} median_xl=${median_xl} d2stats=${d2stats}"

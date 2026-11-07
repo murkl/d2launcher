@@ -20,8 +20,9 @@ sudo pacman -S --needed docker $(make -s packages)
 - `d2launcher` is one file and runs as it is, from a checkout too. A release stamps its version
 - Every request leaving the machine goes through `fetch`, bound to https
 - Every Wine call goes through `with_wine`, every line of output through `log`
+- A job of `ui_progress` runs in a bash of its own and reads only what `job` hands it
 - A change comes with its test in `tests/`, where zenity, Wine and the web are stubs
-- The included Wine is pinned with its sha256 and version. After a change of it, of `aur/PKGBUILD` or of the lines in REFERENCE.md, `make distro-check` runs. CI runs it monthly
+- The included Wine is pinned with its sha256 and version. After a change of it, of `aur/PKGBUILD` or of the lines in README.md, `make distro-check` runs. CI runs it monthly
 
 ## Releasing
 

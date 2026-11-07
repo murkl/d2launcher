@@ -153,9 +153,10 @@ installed() {
     run "${app}/d2launcher"
     grep -q -- '--column=Settings .* Configuration Tools Backups Update D2Launcher$' "${STUB}/calls"
     grep -q -- '--column=Tools .* Wine Configuration Run Program Reinstall Wine$' "${STUB}/calls"
-    grep -q -- '--column=Backups .* Create Backup Export Saves Import Saves$' "${STUB}/calls"
-    mkdir -p "${d2}/backup" "${app}/.git"
-    touch "${game}/cnc-ddraw config.exe" "${d2}/backup/diablo2.tar"
+    grep -q -- '--column=Backups .* Create Backup Import Saves$' "${STUB}/calls"
+    local saves="${d2}/wineprefix/drive_c/users/player/AppData/Roaming/MedianXL/save"
+    mkdir -p "${d2}/backup" "${app}/.git" "$saves"
+    touch "${game}/cnc-ddraw config.exe" "${d2}/backup/diablo2.tar" "${saves}/hero.d2s"
     printf 'd2stats=true\n' >"${d2}/d2launcher.conf"
     : >"${STUB}/calls"
     answer 0 Settings
@@ -178,6 +179,19 @@ installed() {
     grep -qx 'arg=winecfg' "${STUB}/wine"
     run grep -o -- '--column=[A-Za-z]*' "${STUB}/calls"
     [ "${lines[*]}" = '--column=Menu --column=Settings --column=Tools --column=Tools --column=Settings --column=Menu' ]
+}
+
+@test "a dialog that goes away stops only a job you may cancel" {
+    local job='read -rt 1 <> <(:); touch "$STUB/done"'
+    replace_program zenity 'exit 1'
+    run launcher "ui_progress --no-cancel Work bash -c '${job}'"
+    [ "$status" -eq 0 ]
+    [ -e "${STUB}/done" ]
+    rm "${STUB}/done"
+    run launcher "ui_progress Work bash -c '${job}'"
+    [ "$status" -ne 0 ]
+    read -rt 1.5 <> <(:) || true
+    [ ! -e "${STUB}/done" ]
 }
 
 @test "markup and backslashes reach a dialog as written" {
@@ -252,4 +266,12 @@ installed() {
     run launcher choose_version
     [ "$status" -eq 0 ]
     grep -q -- '--column=Choose Version --column= --ok-label=Install --cancel-label=Back TRUE 2.14.6 installed FALSE 2.14.5 $' "${STUB}/calls"
+}
+
+@test "Choose Version without an installed version chooses the newest" {
+    mkdir -p "$game" "${d2}/patches"
+    touch "${d2}/patches/"{1.0,1.1}.sha1
+    run launcher choose_version
+    [ "$status" -eq 0 ]
+    grep -q -- '--ok-label=Install --cancel-label=Back TRUE 1.1  FALSE 1.0 $' "${STUB}/calls"
 }
