@@ -806,11 +806,12 @@ apply_version() {
     notify "Median XL ${tag} is installed."
 }
 
-# The files of the last update that differ now, one per line.
+# The files of the last update that differ now, one per line. sha1sum quotes a
+# name with a space, and SUM_LINE allows no quote or backslash to escape.
 changed_files() {
     [[ -f ${game}/d2launcher-patch.sha1 ]] || return 0
     (cd "$game" && LC_ALL=C sha1sum -c --quiet d2launcher-patch.sha1 2>/dev/null || true) |
-        sed -n 's/: FAILED$//p'
+        sed -n "/: FAILED\$/{s///;s/^'\(.*\)'\$/\1/;p}"
 }
 
 install_version() {
@@ -821,7 +822,7 @@ install_version() {
     while IFS= read -r name; do changed[$name]=1; done < <(changed_files)
     cd "$game"
     while IFS= read -r name; do differ[$name]=1; done < <(
-        LC_ALL=C sha1sum -c --quiet "$list" 2>/dev/null | sed -n 's/: FAILED\( open or read\)\{0,1\}$//p' || true
+        LC_ALL=C sha1sum -c --quiet "$list" 2>/dev/null | sed -n "/: FAILED\( open or read\)\{0,1\}\$/{s///;s/^'\(.*\)'\$/\1/;p}" || true
     )
     while read -r sum name; do
         [[ -n ${differ[$name]:-} && -z ${keep[$name]:-} ]] || continue
