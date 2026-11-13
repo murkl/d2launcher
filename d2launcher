@@ -123,10 +123,12 @@ read_settings() {
             channel="$value"
             ;;
         wine)
-            if [[ -n $value ]] && ! command -v "$value" >/dev/null; then
+            if [[ -n $value ]] && ! type -P "$value" >/dev/null; then
                 echo "Line ${n}: wine names no program: ${value}"
                 return 1
             fi
+            # A path, so wineserver is found beside it.
+            [[ -z $value ]] || value="$(type -P "$value")"
             wine="${value:-${wine_home}/bin/wine}"
             ;;
         prefix)
@@ -1060,7 +1062,9 @@ restore_backup() {
 # something could change them.
 zip_saves() {
     mkdir -p "${1%/*}"
-    (cd "$(saves)" && zip -qr0 "$1" .)
+    rm -f "$1.part"
+    (cd "$(saves)" && zip -qr0 "$1.part" .)
+    mv -f "$1.part" "$1"
 }
 
 # The name of a saves zip, by the game it is for.
