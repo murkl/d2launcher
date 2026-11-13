@@ -98,6 +98,18 @@ sum() {
     [ "$(cat "${game}/ddraw.dll")" = mxl-2 ]
 }
 
+@test "a file with a space in its name is updated, and kept when you changed it" {
+    publish_mxl 1.0 'Diablo II.exe=old' 'Game Data.dll=old'
+    launcher 'fetch_manifest && store_version 1.0 && install_version 1.0'
+    printf 'mine' >"${game}/Game Data.dll"
+    publish_mxl 1.1 'Diablo II.exe=new' 'Game Data.dll=new'
+    answer 0
+    run launcher 'fetch_manifest && store_version 1.1 && apply_version 1.1'
+    [ "$status" -eq 0 ]
+    [ "$(cat "${game}/Diablo II.exe")" = new ]
+    [ "$(cat "${game}/Game Data.dll")" = mine ]
+}
+
 @test "Cancel at the question leaves the game as it is" {
     publish_mxl 1.0 ddraw.dll=mxl
     launcher 'fetch_manifest && store_version 1.0 && install_version 1.0'
