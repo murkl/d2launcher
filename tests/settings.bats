@@ -40,6 +40,7 @@ launch_options=no-such-wrapper %command% -3dfx|launch_options runs no-such-wrapp
 launch_options=gamemoderun %command%; rm x|launch_options runs without a shell
 launch_options=$(id) %command%|launch_options runs without a shell
 wine=/no/such/wine|wine names no program
+wine=log|wine names no program
 prefix=games/diablo2|prefix is an absolute path
 EOF
 }
@@ -51,6 +52,13 @@ EOF
         run launcher "read_settings ${BATS_TEST_TMPDIR}/conf"
         [ "$status" -eq 0 ]
     done
+}
+
+@test "wine by its name runs from where PATH finds it" {
+    printf 'wine=wine\n' >"${BATS_TEST_TMPDIR}/conf"
+    run launcher "read_settings ${BATS_TEST_TMPDIR}/conf && printf %s \"\$wine\""
+    [ "$status" -eq 0 ]
+    [ "$output" = "${BATS_TEST_DIRNAME}/stub/wine" ]
 }
 
 @test "d2stats needs Median XL" {

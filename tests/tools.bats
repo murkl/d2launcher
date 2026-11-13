@@ -209,6 +209,18 @@ publish_release() {
     [ "$output" = hero ]
 }
 
+@test "an export replaces a zip of the same name" {
+    local saves="${d2}/wineprefix/drive_c/users/player/AppData/Roaming/MedianXL" zip="${BATS_TEST_TMPDIR}/saves.zip"
+    mkdir -p "${saves}/save"
+    printf 'hero' >"${saves}/save/hero.d2s"
+    launcher "zip_saves ${zip}"
+    rm "${saves}/save/hero.d2s"
+    printf 'other' >"${saves}/save/other.d2s"
+    launcher "zip_saves ${zip}"
+    run unzip -Z1 "$zip"
+    [ "${lines[*]}" = 'save/ save/other.d2s' ]
+}
+
 @test "a copy unpacked by hand updates itself file by file from a release" {
     publish_release
     answer 0
