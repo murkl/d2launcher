@@ -12,5 +12,8 @@ fi
 zip="${D2_CACHE}/d2gl.zip"
 curl --proto '=https' --proto-redir '=https' -fsSL -o "${zip}.part" "$url"
 mv -f "${zip}.part" "$zip"
-unzip -qo "$zip" -x '*.md' -d "$D2_DIR"
+list="$(unzip -Z1 "$zip")"
+# unzip -x warns when no entry matches, as in GavinK88's zip.
+mapfile -t files < <(grep -v '\.md$' <<<"$list")
+unzip -qo "$zip" "${files[@]}" -d "$D2_DIR"
 echo 'D2GL runs with the launch option -3dfx, the default. Ctrl+O opens its settings in the game.'
